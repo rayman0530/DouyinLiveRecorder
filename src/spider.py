@@ -1130,28 +1130,28 @@ async def get_sooplive_stream_data(
         play_url_list = sorted(play_url_list, key=lambda purl: url_to_bandwidth[purl], reverse=True)
         return play_url_list
 
+    async def handle_login() -> OptionalStr:
+        cookie = await login_sooplive(username, password, proxy_addr=proxy_addr)
+        if 'AuthTicket=' in cookie:
+            print("sooplive platform login successful! Starting to fetch live streaming data...")
+            return cookie
+
+    async def fetch_data(cookie, _result) -> dict:
+        aid_token = await get_sooplive_tk(url, rtype='aid', proxy_addr=proxy_addr, cookies=cookie)
+        _anchor_name, _broad_no = await get_sooplive_tk(url, rtype='info', proxy_addr=proxy_addr, cookies=cookie)
+        _view_url_data = await get_sooplive_cdn_url(_broad_no, proxy_addr=proxy_addr)
+        _view_url = _view_url_data['view_url']
+        _m3u8_url = _view_url + '?aid=' + aid_token
+        _result |= {
+            "anchor_name": _anchor_name,
+            "is_live": True,
+            "m3u8_url": _m3u8_url,
+            'play_url_list': await get_url_list(_m3u8_url),
+            'new_cookies': cookie
+        }
+        return _result
+
     if not anchor_name:
-        async def handle_login() -> OptionalStr:
-            cookie = await login_sooplive(username, password, proxy_addr=proxy_addr)
-            if 'AuthTicket=' in cookie:
-                print("sooplive platform login successful! Starting to fetch live streaming data...")
-                return cookie
-
-        async def fetch_data(cookie, _result) -> dict:
-            aid_token = await get_sooplive_tk(url, rtype='aid', proxy_addr=proxy_addr, cookies=cookie)
-            _anchor_name, _broad_no = await get_sooplive_tk(url, rtype='info', proxy_addr=proxy_addr, cookies=cookie)
-            _view_url_data = await get_sooplive_cdn_url(_broad_no, proxy_addr=proxy_addr)
-            _view_url = _view_url_data['view_url']
-            _m3u8_url = _view_url + '?aid=' + aid_token
-            _result |= {
-                "anchor_name": _anchor_name,
-                "is_live": True,
-                "m3u8_url": _m3u8_url,
-                'play_url_list': await get_url_list(_m3u8_url),
-                'new_cookies': cookie
-            }
-            return _result
-
         if json_data['data']['code'] == -3001:
             print("sooplive live stream failed to retrieve, the live stream just ended.")
             return result
@@ -1175,12 +1175,15 @@ async def get_sooplive_stream_data(
                   "is correct.")
             return result
     if json_data['result'] == 1 and anchor_name:
-        broad_no = json_data['data']['broad_no']
-        hls_authentication_key = json_data['data']['hls_authentication_key']
-        view_url_data = await get_sooplive_cdn_url(broad_no, proxy_addr=proxy_addr)
-        view_url = view_url_data['view_url']
-        m3u8_url = view_url + '?aid=' + hls_authentication_key
-        result |= {'is_live': True, 'm3u8_url': m3u8_url, 'play_url_list': await get_url_list(m3u8_url)}
+        try:
+            return await fetch_data(cookies, result)
+        except Exception:
+            broad_no = json_data['data']['broad_no']
+            hls_authentication_key = json_data['data']['hls_authentication_key']
+            view_url_data = await get_sooplive_cdn_url(broad_no, proxy_addr=proxy_addr)
+            view_url = view_url_data['view_url']
+            m3u8_url = view_url + '?aid=' + hls_authentication_key
+            result |= {'is_live': True, 'm3u8_url': m3u8_url, 'play_url_list': await get_url_list(m3u8_url)}
     result['new_cookies'] = None
     return result
 
