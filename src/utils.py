@@ -63,7 +63,7 @@ def dict_to_cookie_str(cookies_dict: dict) -> str:
 
 
 def read_config_value(file_path: str | Path, section: str, key: str) -> str | None:
-    config = configparser.ConfigParser()
+    config = configparser.RawConfigParser()
 
     try:
         config.read(file_path, encoding='utf-8-sig')
@@ -83,7 +83,7 @@ def read_config_value(file_path: str | Path, section: str, key: str) -> str | No
 
 
 def update_config(file_path: str | Path, section: str, key: str, new_value: str) -> None:
-    config = configparser.ConfigParser()
+    config = configparser.RawConfigParser()
 
     try:
         config.read(file_path, encoding='utf-8-sig')
@@ -95,9 +95,7 @@ def update_config(file_path: str | Path, section: str, key: str, new_value: str)
         print(f"Section [{section}] does not exist in the file.")
         return
 
-    # 转义%字符
-    escaped_value = new_value.replace('%', '%%')
-    config[section][key] = escaped_value
+    config[section][key] = new_value
 
     try:
         with open(file_path, 'w', encoding='utf-8-sig') as configfile:
