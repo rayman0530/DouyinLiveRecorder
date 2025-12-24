@@ -81,10 +81,17 @@ os.environ['PATH'] = ffmpeg_path + os.pathsep + current_env_path
 
 
 def signal_handler(_signal, _frame):
-    sys.exit(0)
+    global exit_recording
+    if not exit_recording:
+        print("\n[!] 接收到退出信号，正在关停所有录制任务，请稍候...")
+        exit_recording = True
+    else:
+        print("\n[!] 再次接收到信号，强制退出...")
+        os._exit(0)
 
 
 signal.signal(signal.SIGTERM, signal_handler)
+signal.signal(signal.SIGINT, signal_handler)
 
 
 def display_info() -> None:
@@ -1781,7 +1788,7 @@ except URLError:
 except Exception as err:
     print("An unexpected error occurred:", err)
 
-while True:
+while not exit_recording:
 
     try:
         if not os.path.isfile(config_file):
@@ -2154,3 +2161,12 @@ while True:
         first_run = False
 
     time.sleep(3)
+
+if exit_recording:
+    try:
+        while recording:
+            print(f"\r正在等待 {len(recording)} 个录制任务结束: {list(recording)}  ", end="")
+            time.sleep(1)
+    except KeyboardInterrupt:
+        pass
+    print("\n[!] 所有录制任务已结束。")
