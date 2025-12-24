@@ -81,14 +81,10 @@ os.environ['PATH'] = ffmpeg_path + os.pathsep + current_env_path
 
 
 def signal_handler(_signal, _frame):
-    global exit_recording
-    exit_recording = True
-    print("\n程序即将退出，正在清理资源...")
     sys.exit(0)
 
 
 signal.signal(signal.SIGTERM, signal_handler)
-signal.signal(signal.SIGINT, signal_handler)
 
 
 def display_info() -> None:
