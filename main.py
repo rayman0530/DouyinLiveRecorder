@@ -1730,25 +1730,26 @@ utils.remove_duplicate_lines(url_config_file)
 
 def read_config_value(config_parser: configparser.RawConfigParser, section: str, option: str, default_value: Any) \
         -> Any:
-    try:
+    with utils.config_lock:
+        try:
 
-        config_parser.read(config_file, encoding=text_encoding)
-        if '录制设置' not in config_parser.sections():
-            config_parser.add_section('录制设置')
-        if '推送配置' not in config_parser.sections():
-            config_parser.add_section('推送配置')
-        if 'Cookie' not in config_parser.sections():
-            config_parser.add_section('Cookie')
-        if 'Authorization' not in config_parser.sections():
-            config_parser.add_section('Authorization')
-        if '账号密码' not in config_parser.sections():
-            config_parser.add_section('账号密码')
-        return config_parser.get(section, option)
-    except (configparser.NoSectionError, configparser.NoOptionError):
-        config_parser.set(section, option, str(default_value))
-        with open(config_file, 'w', encoding=text_encoding) as f:
-            config_parser.write(f)
-        return default_value
+            config_parser.read(config_file, encoding=text_encoding)
+            if '录制设置' not in config_parser.sections():
+                config_parser.add_section('录制设置')
+            if '推送配置' not in config_parser.sections():
+                config_parser.add_section('推送配置')
+            if 'Cookie' not in config_parser.sections():
+                config_parser.add_section('Cookie')
+            if 'Authorization' not in config_parser.sections():
+                config_parser.add_section('Authorization')
+            if '账号密码' not in config_parser.sections():
+                config_parser.add_section('账号密码')
+            return config_parser.get(section, option)
+        except (configparser.NoSectionError, configparser.NoOptionError):
+            config_parser.set(section, option, str(default_value))
+            with open(config_file, 'w', encoding=text_encoding) as f:
+                config_parser.write(f)
+            return default_value
 
 
 options = {"是": True, "否": False}

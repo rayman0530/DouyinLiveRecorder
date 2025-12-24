@@ -15,6 +15,9 @@ from collections import OrderedDict
 import execjs
 from .logger import logger
 import configparser
+import threading
+
+config_lock = threading.Lock()
 
 OptionalStr = str | None
 OptionalDict = dict | None
@@ -83,26 +86,27 @@ def read_config_value(file_path: str | Path, section: str, key: str) -> str | No
 
 
 def update_config(file_path: str | Path, section: str, key: str, new_value: str) -> None:
-    config = configparser.RawConfigParser()
+    with config_lock:
+        config = configparser.RawConfigParser()
 
-    try:
-        config.read(file_path, encoding='utf-8-sig')
-    except Exception as e:
-        print(f"An error occurred while reading the configuration file: {e}")
-        return
+        try:
+            config.read(file_path, encoding='utf-8-sig')
+        except Exception as e:
+            print(f"An error occurred while reading the configuration file: {e}")
+            return
 
-    if section not in config:
-        print(f"Section [{section}] does not exist in the file.")
-        return
+        if section not in config:
+            print(f"Section [{section}] does not exist in the file.")
+            return
 
-    config[section][key] = new_value
+        config[section][key] = new_value
 
-    try:
-        with open(file_path, 'w', encoding='utf-8-sig') as configfile:
-            config.write(configfile)
-        print(f"The value of {key} under [{section}] in the configuration file has been updated.")
-    except Exception as e:
-        print(f"Error occurred while writing to the configuration file: {e}")
+        try:
+            with open(file_path, 'w', encoding='utf-8-sig') as configfile:
+                config.write(configfile)
+            print(f"The value of {key} under [{section}] in the configuration file has been updated.")
+        except Exception as e:
+            print(f"Error occurred while writing to the configuration file: {e}")
 
 
 def get_file_paths(directory: str) -> list:
