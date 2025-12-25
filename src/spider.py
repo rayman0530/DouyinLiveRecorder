@@ -3396,3 +3396,80 @@ async def get_picarto_stream_url(url: str, proxy_addr: OptionalStr = None, cooki
         m3u8_url = f"https://1-edge1-us-newyork.picarto.tv/stream/hls/golive+{anchor_name}/index.m3u8"
         result |= {'is_live': True, 'title': title, 'm3u8_url': m3u8_url, 'record_url': m3u8_url}
     return result
+
+
+@trace_error_decorator
+async def get_instagram_stream_data(url: str, proxy_addr: OptionalStr = None, cookies: OptionalStr = None) -> dict:
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 14_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 Instagram 192.0.0.37.119',
+        'Accept-Language': 'en-US,en;q=0.9',
+    }
+    if cookies:
+        headers['Cookie'] = cookies
+        headers['X-IG-App-ID'] = '936619500051864'
+
+    result = {"anchor_name": "", "is_live": False}
+    
+    try:
+        username_match = re.search(r'(?:https?://)?(?:www\.)?instagram\.com/([a-zA-Z0-9_\.]+)', url)
+        if not username_match:
+            return result
+        username = username_match.group(1)
+        result['anchor_name'] = username
+
+        if not cookies:
+            print("Instagram recording requires cookies. Please configure 'instagram_cookie' in config.ini")
+            return result
+
+        # 1. Get User ID
+        # Using web search API which is relatively stable with cookies
+        search_api = f'https://www.instagram.com/web/search/topsearch/?context=blended&query={username}'
+        json_str = await async_req(search_api, proxy_addr=proxy_addr, headers=headers)
+        json_data = json.loads(json_str)
+        
+        user_id = None
+        for user in json_data.get('users', []):
+            if user['user']['username'] == username:
+                user_id = user['user']['pk']
+                break
+        
+        if not user_id:
+            return result
+
+        # 2. Check Live Status (App API)
+        # This endpoint returns full user info including 'broadcast' if live
+        info_api = f'https://i.instagram.com/api/v1/users/{user_id}/info/'
+        json_str = await async_req(info_api, proxy_addr=proxy_addr, headers=headers)
+        json_data = json.loads(json_str)
+        
+        user_info = json_data.get('user', {})
+        broadcast = user_info.get('broadcast')
+        
+        if not broadcast:
+            return result
+            
+        result['is_live'] = True
+        broadcast_id = broadcast['id']
+        
+        # 3. Get Stream URL (App API)
+        live_api = f'https://i.instagram.com/api/v1/live/{broadcast_id}/info/'
+        json_str = await async_req(live_api, proxy_addr=proxy_addr, headers=headers)
+        json_data = json.loads(json_str)
+        
+        dash_url = json_data.get('dash_playback_url')
+        rtmp_url = json_data.get('rtmp_playback_url')
+        
+        # Prefer DASH (usually works better with ffmpeg for playback/recording)
+        # But ffmpeg might need headers or cookies to play it? Usually IP restricted or time limited.
+        
+        if dash_url:
+            result['m3u8_url'] = dash_url # ffmpeg handles dash mpd same as m3u8 often, or we treat it as such
+            result['record_url'] = dash_url
+        elif rtmp_url:
+             result['flv_url'] = rtmp_url
+             result['record_url'] = rtmp_url
+
+    except Exception as e:
+        print(f"Instagram data fetch error: {e}")
+        
+    return result

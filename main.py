@@ -42,7 +42,7 @@ version = "v4.0.7"
 platforms = ("\n国内站点：抖音|快手|虎牙|斗鱼|YY|B站|小红书|bigo|blued|网易CC|千度热播|猫耳FM|Look|TwitCasting|百度|微博|"
              "酷狗|花椒|流星|Acfun|畅聊|映客|音播|知乎|嗨秀|VV星球|17Live|浪Live|漂漂|六间房|乐嗨|花猫|淘宝|京东|咪咕|连接|来秀"
              "\n海外站点：TikTok|SOOP|PandaTV|WinkTV|FlexTV|PopkonTV|TwitchTV|LiveMe|ShowRoom|CHZZK|Shopee|"
-             "Youtube|Faceit|Picarto")
+             "Youtube|Faceit|Picarto|Instagram")
 
 recording = set()
 error_count = 0
@@ -1023,6 +1023,19 @@ def start_record(url_data: tuple, count_variable: int = -1) -> None:
                             port_info = asyncio.run(spider.get_picarto_stream_url(
                                 url=record_url, proxy_addr=proxy_address, cookies=picarto_cookie))
 
+                    elif record_url.find("instagram.com/") > -1:
+                        platform = 'Instagram'
+                        with semaphore:
+                            if global_proxy or proxy_address:
+                                json_data = asyncio.run(spider.get_instagram_stream_data(
+                                    url=record_url,
+                                    proxy_addr=proxy_address,
+                                    cookies=instagram_cookie
+                                ))
+                                port_info = asyncio.run(stream.get_instagram_stream_url(json_data))
+                            else:
+                                logger.error("错误信息: 网络异常，请检查本网络是否能正常访问Instagram平台")
+
                     elif record_url.find(".m3u8") > -1 or record_url.find(".flv") > -1:
                         platform = '自定义录制直播'
                         port_info = {
@@ -1923,6 +1936,7 @@ while True:
     lianjie_cookie = read_config_value(config, 'Cookie', 'lianjie_cookie', '')
     laixiu_cookie = read_config_value(config, 'Cookie', 'laixiu_cookie', '')
     picarto_cookie = read_config_value(config, 'Cookie', 'picarto_cookie', '')
+    instagram_cookie = read_config_value(config, 'Cookie', 'instagram_cookie', '')
 
     video_save_type_list = ("FLV", "MKV", "TS", "MP4", "MP3音频", "M4A音频", "MP3", "M4A")
     if video_save_type and video_save_type.upper() in video_save_type_list:
@@ -2048,6 +2062,7 @@ while True:
                     'www.picarto.tv'
                 ]
                 overseas_platform_host = [
+                    'www.instagram.com',
                     'www.tiktok.com',
                     'play.sooplive.co.kr',
                     'm.sooplive.co.kr',

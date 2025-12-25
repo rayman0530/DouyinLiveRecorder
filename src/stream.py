@@ -444,3 +444,20 @@ async def get_stream_url(json_data: dict, video_quality: str, url_type: str = 'm
     data['title'] = json_data.get('title')
     data['quality'] = video_quality
     return data
+
+
+@trace_error_decorator
+async def get_instagram_stream_url(json_data: dict) -> dict:
+    if not json_data['is_live']:
+        return json_data
+
+    # Instagram usually only provides one quality/stream via DASH/RTMP
+    # We just return what we found in spider
+    return {
+        "anchor_name": json_data['anchor_name'],
+        "is_live": True,
+        "record_url": json_data.get('record_url'),
+        "m3u8_url": json_data.get('m3u8_url'),
+        "flv_url": json_data.get('flv_url'),
+        "quality": "OD" # Default to OD (Original Definition)
+    }
