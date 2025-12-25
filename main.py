@@ -81,10 +81,17 @@ os.environ['PATH'] = ffmpeg_path + os.pathsep + current_env_path
 
 
 def signal_handler(_signal, _frame):
-    sys.exit(0)
+    global exit_recording
+    if not exit_recording:
+        print("\n[!] 接收到退出信号，正在关停所有录制任务，请稍候...")
+        exit_recording = True
+    else:
+        print("\n[!] 再次接收到信号，强制退出...")
+        os._exit(0)
 
 
 signal.signal(signal.SIGTERM, signal_handler)
+signal.signal(signal.SIGINT, signal_handler)
 
 
 def display_info() -> None:
@@ -1743,25 +1750,26 @@ utils.remove_duplicate_lines(url_config_file)
 
 def read_config_value(config_parser: configparser.RawConfigParser, section: str, option: str, default_value: Any) \
         -> Any:
-    try:
+    with utils.config_lock:
+        try:
 
-        config_parser.read(config_file, encoding=text_encoding)
-        if '录制设置' not in config_parser.sections():
-            config_parser.add_section('录制设置')
-        if '推送配置' not in config_parser.sections():
-            config_parser.add_section('推送配置')
-        if 'Cookie' not in config_parser.sections():
-            config_parser.add_section('Cookie')
-        if 'Authorization' not in config_parser.sections():
-            config_parser.add_section('Authorization')
-        if '账号密码' not in config_parser.sections():
-            config_parser.add_section('账号密码')
-        return config_parser.get(section, option)
-    except (configparser.NoSectionError, configparser.NoOptionError):
-        config_parser.set(section, option, str(default_value))
-        with open(config_file, 'w', encoding=text_encoding) as f:
-            config_parser.write(f)
-        return default_value
+            config_parser.read(config_file, encoding=text_encoding)
+            if '录制设置' not in config_parser.sections():
+                config_parser.add_section('录制设置')
+            if '推送配置' not in config_parser.sections():
+                config_parser.add_section('推送配置')
+            if 'Cookie' not in config_parser.sections():
+                config_parser.add_section('Cookie')
+            if 'Authorization' not in config_parser.sections():
+                config_parser.add_section('Authorization')
+            if '账号密码' not in config_parser.sections():
+                config_parser.add_section('账号密码')
+            return config_parser.get(section, option)
+        except (configparser.NoSectionError, configparser.NoOptionError):
+            config_parser.set(section, option, str(default_value))
+            with open(config_file, 'w', encoding=text_encoding) as f:
+                config_parser.write(f)
+            return default_value
 
 
 options = {"是": True, "否": False}
@@ -1793,7 +1801,7 @@ except URLError:
 except Exception as err:
     print("An unexpected error occurred:", err)
 
-while True:
+while not exit_recording:
 
     try:
         if not os.path.isfile(config_file):
@@ -2168,3 +2176,12 @@ while True:
         first_run = False
 
     time.sleep(3)
+
+if exit_recording:
+    try:
+        while recording:
+            print(f"\r正在等待 {len(recording)} 个录制任务结束: {list(recording)}  ", end="")
+            time.sleep(1)
+    except KeyboardInterrupt:
+        pass
+    print("\n[!] 所有录制任务已结束。")
