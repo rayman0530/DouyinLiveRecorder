@@ -64,6 +64,8 @@ first_run = True
 not_record_list = []
 start_display_time = datetime.datetime.now()
 global_proxy = False
+weverse_cookie = ''
+weverse_refresh_token = ''
 recording_time_list = {}
 script_path = os.path.split(os.path.realpath(sys.argv[0]))[0]
 config_file = f'{script_path}/config/config.ini'
@@ -551,7 +553,7 @@ def select_source_url(link, stream_info):
 
 
 def start_record(url_data: tuple, count_variable: int = -1) -> None:
-    global error_count
+    global error_count, weverse_cookie, weverse_refresh_token
 
     while True:
         try:
@@ -1968,6 +1970,8 @@ while not exit_recording:
     laixiu_cookie = read_config_value(config, 'Cookie', 'laixiu_cookie', '')
     picarto_cookie = read_config_value(config, 'Cookie', 'picarto_cookie', '')
     instagram_cookie = read_config_value(config, 'Cookie', 'instagram_cookie', '')
+    weverse_cookie = read_config_value(config, 'Cookie', 'weverse_cookie', '')
+    weverse_refresh_token = read_config_value(config, 'Cookie', 'weverse_refresh_token', '')
 
     video_save_type_list = ("FLV", "MKV", "TS", "MP4", "MP3音频", "M4A音频", "MP3", "M4A")
     if video_save_type and video_save_type.upper() in video_save_type_list:
