@@ -529,7 +529,8 @@ def get_record_headers(platform, live_url):
         '17Live': 'referer:https://17.live/en/live/6302408',
         '浪Live': 'referer:https://www.lang.live',
         'shopee': f'origin:{live_domain}',
-        'Blued直播': 'referer:https://app.blued.cn'
+        'Blued直播': 'referer:https://app.blued.cn',
+        'Weverse': 'origin:https://weverse.io'
     }
     return record_headers.get(platform)
 
@@ -2112,7 +2113,9 @@ while not exit_recording:
                     '.shp.ee',
                     'www.youtube.com',
                     'youtu.be',
-                    'www.faceit.com'
+                    'www.faceit.com',
+                    'weverse.io',
+                    'www.weverse.io'
                 ]
 
                 platform_host.extend(overseas_platform_host)
@@ -2127,7 +2130,9 @@ while not exit_recording:
                     "www.haixiutv.com",
                     "v.6.cn",
                     "m.6.cn",
-                    'www.lehaitv.com'
+                    'www.lehaitv.com',
+                    'weverse.io',
+                    'www.weverse.io'
                 )
 
                 if 'live.shopee.' in url_host or '.shp.ee' in url_host:
