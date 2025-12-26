@@ -461,3 +461,18 @@ async def get_instagram_stream_url(json_data: dict) -> dict:
         "flv_url": json_data.get('flv_url'),
         "quality": "OD" # Default to OD (Original Definition)
     }
+
+
+@trace_error_decorator
+async def get_weverse_stream_url(json_data: dict) -> dict:
+    if not json_data.get('is_live', False):
+        return json_data
+
+    return {
+        "anchor_name": json_data['anchor_name'],
+        "is_live": True,
+        "title": json_data.get('title'),
+        "record_url": json_data.get('record_url'),
+        "m3u8_url": json_data.get('m3u8_url'),
+        "quality": "OD"
+    }

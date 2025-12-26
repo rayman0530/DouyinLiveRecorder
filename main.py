@@ -42,7 +42,7 @@ version = "v4.0.7"
 platforms = ("\n国内站点：抖音|快手|虎牙|斗鱼|YY|B站|小红书|bigo|blued|网易CC|千度热播|猫耳FM|Look|TwitCasting|百度|微博|"
              "酷狗|花椒|流星|Acfun|畅聊|映客|音播|知乎|嗨秀|VV星球|17Live|浪Live|漂漂|六间房|乐嗨|花猫|淘宝|京东|咪咕|连接|来秀"
              "\n海外站点：TikTok|SOOP|PandaTV|WinkTV|FlexTV|PopkonTV|TwitchTV|LiveMe|ShowRoom|CHZZK|Shopee|"
-             "Youtube|Faceit|Picarto|Instagram")
+             "Youtube|Faceit|Picarto|Instagram|Weverse")
 
 recording = set()
 error_count = 0
@@ -699,6 +699,28 @@ def start_record(url_data: tuple, count_variable: int = -1) -> None:
                                 port_info = asyncio.run(stream.get_stream_url(json_data, record_quality, spec=True))
                             else:
                                 logger.error("错误信息: 网络异常，请检查本网络是否能正常访问SOOP平台")
+
+                    elif record_url.find("https://weverse.io/") > -1:
+                        platform = 'Weverse'
+                        with semaphore:
+                            if global_proxy or proxy_address:
+                                json_data = asyncio.run(spider.get_weverse_stream_data(
+                                    url=record_url,
+                                    proxy_addr=proxy_address,
+                                    cookies=weverse_cookie,
+                                    refresh_token=weverse_refresh_token
+                                ))
+                                if json_data and json_data.get('new_tokens'):
+                                    new_access = json_data['new_tokens']['access']
+                                    new_refresh = json_data['new_tokens']['refresh']
+                                    utils.update_config(config_file, 'Cookie', 'weverse_cookie', new_access)
+                                    utils.update_config(config_file, 'Cookie', 'weverse_refresh_token', new_refresh)
+                                    weverse_cookie = new_access
+                                    weverse_refresh_token = new_refresh
+
+                                port_info = asyncio.run(stream.get_weverse_stream_url(json_data))
+                            else:
+                                logger.error("错误信息: 网络异常，请检查本网络是否能正常访问Weverse平台")
 
                     elif record_url.find("cc.163.com/") > -1:
                         platform = '网易CC直播'
