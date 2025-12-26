@@ -1,4 +1,4 @@
-# -*- encoding: utf-8 -*-
+﻿# -*- encoding: utf-8 -*-
 
 """
 Author: Hmily
@@ -3402,382 +3402,216 @@ async def get_picarto_stream_url(url: str, proxy_addr: OptionalStr = None, cooki
 @trace_error_decorator
 async def get_instagram_stream_data(url: str, proxy_addr: OptionalStr = None, cookies: OptionalStr = None) -> dict:
     headers = {
-        'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 14_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 Instagram 192.0.0.37.119',
-        'Accept-Language': 'en-US,en;q=0.9',
+        "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 14_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 Instagram 192.0.0.37.119",
+        "Accept-Language": "en-US,en;q=0.9",
     }
     if cookies:
-        headers['Cookie'] = cookies
-        headers['X-IG-App-ID'] = '936619500051864'
+        headers["Cookie"] = cookies
+        headers["X-IG-App-ID"] = "936619500051864"
 
     result = {"anchor_name": "", "is_live": False}
-    
+
     try:
-        username_match = re.search(r'(?:https?://)?(?:www\.)?instagram\.com/([a-zA-Z0-9_\.]+)', url)
+        username_match = re.search(r"(?:https?://)?(?:www\.)?instagram\.com/([a-zA-Z0-9_\.]+)", url)
         if not username_match:
             return result
         username = username_match.group(1)
-        result['anchor_name'] = username
+        result["anchor_name"] = username
 
         if not cookies:
-            print("Instagram recording requires cookies. Please configure 'instagram_cookie' in config.ini")
+            print("Instagram recording requires cookies. Please configure instagram_cookie in config.ini")
             return result
 
         # 1. Get User ID
-        # Using web search API which is relatively stable with cookies
-        search_api = f'https://www.instagram.com/web/search/topsearch/?context=blended&query={username}'
+        search_api = f"https://www.instagram.com/web/search/topsearch/?context=blended&query={username}"
         json_str = await async_req(search_api, proxy_addr=proxy_addr, headers=headers)
         json_data = json.loads(json_str)
-        
+
         user_id = None
-        for user in json_data.get('users', []):
-            if user['user']['username'] == username:
-                user_id = user['user']['pk']
+        for user in json_data.get("users", []):
+            if user["user"]["username"] == username:
+                user_id = user["user"]["pk"]
                 break
-        
+
         if not user_id:
             return result
 
         # 2. Check Live Status (App API)
-        # This endpoint returns full user info including 'broadcast' if live
-        info_api = f'https://i.instagram.com/api/v1/users/{user_id}/info/'
+        info_api = f"https://i.instagram.com/api/v1/users/{user_id}/info/"
         json_str = await async_req(info_api, proxy_addr=proxy_addr, headers=headers)
         json_data = json.loads(json_str)
-        
-        user_info = json_data.get('user', {})
-        broadcast = user_info.get('broadcast')
-        
+
+        user_info = json_data.get("user", {})
+        broadcast = user_info.get("broadcast")
+
         if not broadcast:
             return result
-            
-        result['is_live'] = True
-        broadcast_id = broadcast['id']
-        
+
+        result["is_live"] = True
+        broadcast_id = broadcast["id"]
+
         # 3. Get Stream URL (App API)
-        live_api = f'https://i.instagram.com/api/v1/live/{broadcast_id}/info/'
+        live_api = f"https://i.instagram.com/api/v1/live/{broadcast_id}/info/"
         json_str = await async_req(live_api, proxy_addr=proxy_addr, headers=headers)
         json_data = json.loads(json_str)
-        
-        dash_url = json_data.get('dash_playback_url')
-        rtmp_url = json_data.get('rtmp_playback_url')
-        
-        # Prefer DASH (usually works better with ffmpeg for playback/recording)
-        # But ffmpeg might need headers or cookies to play it? Usually IP restricted or time limited.
-        
+
+        dash_url = json_data.get("dash_playback_url")
+        rtmp_url = json_data.get("rtmp_playback_url")
+
         if dash_url:
-            result['m3u8_url'] = dash_url # ffmpeg handles dash mpd same as m3u8 often, or we treat it as such
-            result['record_url'] = dash_url
+            result["m3u8_url"] = dash_url
+            result["record_url"] = dash_url
         elif rtmp_url:
-             result['flv_url'] = rtmp_url
-             result['record_url'] = rtmp_url
+            result["flv_url"] = rtmp_url
+            result["record_url"] = rtmp_url
 
-        except Exception as e:
+    except Exception as e:
+        print(f"Instagram data fetch error: {e}")
 
-            print(f"Instagram data fetch error: {e}")
+    return result
 
-            
 
-        return result
+async def get_weverse_stream_data(url: str, proxy_addr: OptionalStr = None, cookies: OptionalStr = None,
+                                  refresh_token: OptionalStr = None) -> dict:
+    from .weverse_auth import refresh_weverse_token
 
-    
+    token = None
+    if cookies:
+        match = re.search(r"we2_access_token=([^;]+)", cookies)
+        if match:
+            token = match.group(1)
+        else:
+            token = cookies
 
-    
+    new_tokens = None
 
-    async def get_weverse_stream_data(url: str, proxy_addr: OptionalStr = None, cookies: OptionalStr = None,
+    async def do_request(api_url, api_headers):
+        return await async_req(url=api_url, proxy_addr=proxy_addr, headers=api_headers)
 
-                                      refresh_token: OptionalStr = None) -> dict:
+    headers = {
+        "Accept": "application/json",
+        "Origin": "https://weverse.io",
+        "Referer": "https://weverse.io/",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    }
 
-        from .weverse_auth import refresh_weverse_token
+    signing_key = b"1b9cb6378d959b45714bec49971ade22e6e24e42"
 
-    
-
-        token = None
-
-        if cookies:
-
-            match = re.search(r'we2_access_token=([^;]+)', cookies)
-
-            if match:
-
-                token = match.group(1)
-
-            else:
-
-                token = cookies
-
-    
-
-        new_tokens = None
-
-    
-
-        async def do_request(api_url, api_headers):
-
-            return await async_req(url=api_url, proxy_addr=proxy_addr, headers=api_headers)
-
-    
-
-        headers = {
-
-            'Accept': 'application/json',
-
-            'Origin': 'https://weverse.io',
-
-            'Referer': 'https://weverse.io/',
-
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-
+    def get_signed_params(api_path, extra_params=None):
+        query_params = {
+            "appId": "be4d79eb8fc7bd008ee82c8ec4ff6fd4",
+            "language": "en",
+            "os": "WEB",
+            "platform": "WEB",
+            "wpf": "pc",
         }
-
-    
-
-        # Helper for signing
-
-        signing_key = b'1b9cb6378d959b45714bec49971ade22e6e24e42'
-
-    
-
-        def get_signed_params(api_path, extra_params=None):
-
-            query_params = {
-
-                'appId': 'be4d79eb8fc7bd008ee82c8ec4ff6fd4',
-
-                'language': 'en',
-
-                'os': 'WEB',
-
-                'platform': 'WEB',
-
-                'wpf': 'pc',
-
-            }
-
-            if extra_params:
-
-                query_params.update(extra_params)
-
-    
-
-            full_path = f"{api_path}?{urllib.parse.urlencode(query_params)}"
-
-            wmsgpad = int(time.time() * 1000) - 500
-
-            msg = f'{full_path[:255]}{wmsgpad}'.encode()
-
-            wmd = base64.b64encode(hmac.new(signing_key, msg, hashlib.sha1).digest()).decode()
-
-    
-
-            query_params.update({
-
-                'wmsgpad': str(wmsgpad),
-
-                'wmd': wmd,
-
-            })
-
-            return query_params
-
-    
-
-        api_base = "https://global.apis.naver.com/weverse/wevweb"
-
-    
-
-        # Extract channel name
-
-        channel_name = None
-
-        if "weverse.io/" in url:
-
-            parts = url.split("weverse.io/")
-
-            if len(parts) > 1:
-
-                channel_name = parts[1].split("/")[0]
-
-    
-
-        if not channel_name:
-
-            return {"anchor_name": channel_name, "is_live": False}
-
-    
-
-        # Step-by-step API calls with 401/403 handling
-
-        current_token = token
-
-    
-
-        async def call_weverse_api(api_path, extra_params=None):
-
-            nonlocal current_token, new_tokens, refresh_token
-
-    
-
-            for attempt in range(2): # Try twice (one with current, one after refresh)
-
-                params = get_signed_params(api_path, extra_params)
-
-                full_url = f"{api_base}{api_path}?{urllib.parse.urlencode(params)}"
-
-    
-
-                req_headers = headers.copy()
-
-                if current_token:
-
-                    req_headers['Authorization'] = f'Bearer {current_token}'
-
-                req_headers['WEV-device-Id'] = str(uuid.uuid4())
-
-    
-
-                resp_str = await do_request(full_url, req_headers)
-
-    
-
-                try:
-
-                    data = json.loads(resp_str)
-
-                    if data.get('errorCode') in ['wam_401', 'common_401', 'common_403'] or data.get('status') in [401, 403]:
-
-                        if refresh_token and attempt == 0:
-
-                            new_a, new_r = refresh_weverse_token(refresh_token)
-
-                            if new_a:
-
-                                current_token = new_a
-
-                                refresh_token = new_r
-
-                                new_tokens = {'access': new_a, 'refresh': new_r}
-
-                                continue # Retry with new token
-
-                    return data
-
-                except:
-
-                    return None
-
-            return None
-
-    
-
-        # 1. Get Community ID
-
-        comm_data = await call_weverse_api("/community/v1.0/communityIdUrlPathByUrlPathArtistCode", {'keyword': channel_name})
-
-        if not comm_data or 'communityId' not in comm_data:
-
-            return {"anchor_name": channel_name, "is_live": False, "new_tokens": new_tokens}
-
-    
-
-        community_id = str(comm_data['communityId'])
-
-    
-
-        # 2. Check Live Tab
-
-        live_tab_data = await call_weverse_api(f"/post/v1.0/community-{community_id}/liveTab", {
-
-            'debugMessage': 'true',
-
-            'fields': 'onAirLivePosts.fieldSet(postsV1).limit(10),reservedLivePosts.fieldSet(postsV1).limit(10)'
-
+        if extra_params:
+            query_params.update(extra_params)
+
+        full_path = f"{api_path}?{urllib.parse.urlencode(query_params)}"
+        wmsgpad = int(time.time() * 1000) - 500
+        msg = f"{full_path[:255]}{wmsgpad}".encode()
+        wmd = base64.b64encode(hmac.new(signing_key, msg, hashlib.sha1).digest()).decode()
+
+        query_params.update({
+            "wmsgpad": str(wmsgpad),
+            "wmd": wmd,
         })
+        return query_params
 
-        if not live_tab_data:
+    api_base = "https://global.apis.naver.com/weverse/wevweb"
 
-            return {"anchor_name": channel_name, "is_live": False, "new_tokens": new_tokens}
+    channel_name = None
+    if "weverse.io/" in url:
+        parts = url.split("weverse.io/")
+        if len(parts) > 1:
+            channel_name = parts[1].split("/")[0]
 
-    
+    if not channel_name:
+        return {"anchor_name": channel_name, "is_live": False}
 
-        video_id = None
+    current_token = token
 
-        title = ""
+    async def call_weverse_api(api_path, extra_params=None):
+        nonlocal current_token, new_tokens, refresh_token
 
-        api_video_id = None
+        for attempt in range(2):
+            params = get_signed_params(api_path, extra_params)
+            full_url = f"{api_base}{api_path}?{urllib.parse.urlencode(params)}"
 
-    
+            req_headers = headers.copy()
+            if current_token:
+                req_headers["Authorization"] = f"Bearer {current_token}"
+            req_headers["WEV-device-Id"] = str(uuid.uuid4())
 
-        on_air = live_tab_data.get('onAirLivePosts', {}).get('data', [])
+            resp_str = await do_request(full_url, req_headers)
 
-        for post in on_air:
+            try:
+                data = json.loads(resp_str)
+                if data.get("errorCode") in ["wam_401", "common_401", "common_403"] or data.get("status") in [401, 403]:
+                    if refresh_token and attempt == 0:
+                        new_a, new_r = refresh_weverse_token(refresh_token)
+                        if new_a:
+                            current_token = new_a
+                            refresh_token = new_r
+                            new_tokens = {"access": new_a, "refresh": new_r}
+                            continue
+                return data
+            except Exception:
+                return None
+        return None
 
-            ext_video = post.get('extension', {}).get('video', {})
-
-            if ext_video.get('type') == 'LIVE' and ext_video.get('status') == 'ONAIR':
-
-                video_id = post['postId']
-
-                title = post.get('extension', {}).get('mediaInfo', {}).get('title', '')
-
-                api_video_id = ext_video.get('videoId')
-
-                break
-
-    
-
-        if not video_id or not api_video_id:
-
-            return {"anchor_name": channel_name, "is_live": False, "new_tokens": new_tokens}
-
-    
-
-        # 3. Get Play Info
-
-        play_info = await call_weverse_api(f"/video/v1.3/lives/{api_video_id}/playInfo", {
-
-            'preview.format': 'json',
-
-            'preview.version': 'v2'
-
-        })
-
-    
-
-        if play_info and 'lipPlayback' in play_info:
-
-            playback = json.loads(play_info['lipPlayback'])
-
-            m3u8_url = None
-
-            for media in playback.get('media', []):
-
-                if media.get('protocol') == 'HLS':
-
-                    m3u8_url = media.get('path')
-
-                    break
-
-    
-
-            if m3u8_url:
-
-                return {
-
-                    "anchor_name": channel_name,
-
-                    "is_live": True,
-
-                    "title": title,
-
-                    "m3u8_url": m3u8_url,
-
-                    "record_url": m3u8_url,
-
-                    "new_tokens": new_tokens
-
-                }
-
-    
-
+    comm_data = await call_weverse_api("/community/v1.0/communityIdUrlPathByUrlPathArtistCode", {"keyword": channel_name})
+    if not comm_data or "communityId" not in comm_data:
         return {"anchor_name": channel_name, "is_live": False, "new_tokens": new_tokens}
 
-    
+    community_id = str(comm_data["communityId"])
+
+    live_tab_data = await call_weverse_api(f"/post/v1.0/community-{community_id}/liveTab", {
+        "debugMessage": "true",
+        "fields": "onAirLivePosts.fieldSet(postsV1).limit(10),reservedLivePosts.fieldSet(postsV1).limit(10)"
+    })
+    if not live_tab_data:
+        return {"anchor_name": channel_name, "is_live": False, "new_tokens": new_tokens}
+
+    video_id = None
+    title = ""
+    api_video_id = None
+
+    on_air = live_tab_data.get("onAirLivePosts", {}).get("data", [])
+    for post in on_air:
+        ext_video = post.get("extension", {}).get("video", {})
+        if ext_video.get("type") == "LIVE" and ext_video.get("status") == "ONAIR":
+            video_id = post["postId"]
+            title = post.get("extension", {}).get("mediaInfo", {}).get("title", "")
+            api_video_id = ext_video.get("videoId")
+            break
+
+    if not video_id or not api_video_id:
+        return {"anchor_name": channel_name, "is_live": False, "new_tokens": new_tokens}
+
+    play_info = await call_weverse_api(f"/video/v1.3/lives/{api_video_id}/playInfo", {
+        "preview.format": "json",
+        "preview.version": "v2"
+    })
+
+    if play_info and "lipPlayback" in play_info:
+        playback = json.loads(play_info["lipPlayback"])
+        m3u8_url = None
+        for media in playback.get("media", []):
+            if media.get("protocol") == "HLS":
+                m3u8_url = media.get("path")
+                break
+
+        if m3u8_url:
+            return {
+                "anchor_name": channel_name,
+                "is_live": True,
+                "title": title,
+                "m3u8_url": m3u8_url,
+                "record_url": m3u8_url,
+                "new_tokens": new_tokens
+            }
+
+    return {"anchor_name": channel_name, "is_live": False, "new_tokens": new_tokens}
+

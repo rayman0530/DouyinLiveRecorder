@@ -700,7 +700,7 @@ def start_record(url_data: tuple, count_variable: int = -1) -> None:
                             else:
                                 logger.error("错误信息: 网络异常，请检查本网络是否能正常访问SOOP平台")
 
-                    elif record_url.find("https://weverse.io/") > -1:
+                    elif record_url.find("weverse.io/") > -1:
                         platform = 'Weverse'
                         with semaphore:
                             if global_proxy or proxy_address:
@@ -1871,7 +1871,7 @@ while not exit_recording:
     custom_script = read_config_value(config, '录制设置', '自定义脚本执行命令', "") if is_run_script else None
     enable_proxy_platform = read_config_value(
         config, '录制设置', '使用代理录制的平台(逗号分隔)',
-        'tiktok, soop, pandalive, winktv, flextv, popkontv, twitch, liveme, showroom, chzzk, shopee, shp, youtu, faceit'
+        'tiktok, soop, pandalive, winktv, flextv, popkontv, twitch, liveme, showroom, chzzk, shopee, shp, youtu, faceit, weverse'
     )
     enable_proxy_platform_list = enable_proxy_platform.replace('，', ',').split(',') if enable_proxy_platform else None
     extra_enable_proxy = read_config_value(config, '录制设置', '额外使用代理录制的平台(逗号分隔)', '')
