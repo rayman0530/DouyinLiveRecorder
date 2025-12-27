@@ -3013,8 +3013,16 @@ async def get_youtube_stream_url(url: str, proxy_addr: OptionalStr = None, cooki
         headers['Cookie'] = cookies
 
     html_str = await async_req(url, proxy_addr=proxy_addr, headers=headers, abroad=True)
-    json_str = re.search('var ytInitialPlayerResponse = (.*?);var meta = document\\.createElement', html_str).group(1)
-    json_data = json.loads(json_str)
+    match = re.search(r'var ytInitialPlayerResponse = (.*?);var meta = document\.createElement', html_str)
+    if not match:
+        match = re.search(r'var ytInitialPlayerResponse = (.*?);var', html_str)
+    
+    if match:
+        json_str = match.group(1)
+        json_data = json.loads(json_str)
+    else:
+        json_data = {}
+
     result = {"anchor_name": "", "is_live": False}
     if 'videoDetails' not in json_data:
         print("Error: Please log in to YouTube on your device's webpage and configure cookies in the config.ini")
