@@ -1229,7 +1229,7 @@ def start_record(url_data: tuple, count_variable: int = -1) -> None:
                                     "-analyzeduration", analyzeduration,
                                     "-probesize", probesize,
                                     "-fflags", "+discardcorrupt",
-                                    "-re", "-i", real_url,
+                                    "-i", real_url,
                                     "-bufsize", bufsize,
                                     "-sn", "-dn",
                                     "-reconnect_delay_max", "60",
