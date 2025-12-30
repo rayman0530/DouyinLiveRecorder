@@ -1575,6 +1575,7 @@ def start_record(url_data: tuple, count_variable: int = -1) -> None:
                                                 "-c:v", "copy",
                                                 "-c:a", "copy",
                                                 "-map", "0",
+                                                "-bsf:v", "h264_mp4toannexb",
                                                 "-f", "segment",
                                                 "-segment_time", split_time,
                                                 "-segment_format", 'mpegts',
