@@ -3009,10 +3009,17 @@ async def get_youtube_stream_url(url: str, proxy_addr: OptionalStr = None, cooki
         'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/115.0',
     }
 
-    if cookies:
-        headers['Cookie'] = cookies
+    # Use a generic SOCS cookie to bypass the consent page.
+    socs_cookie = 'SOCS=CAESEwgDEgk0ODE3Nzk3MjQaAmVuIAEaBgiA_LyaBg'
+    if cookies and 'SOCS=' not in cookies:
+        headers['Cookie'] = f"{socs_cookie}; {cookies}"
+    else:
+        headers['Cookie'] = socs_cookie
 
     html_str = await async_req(url, proxy_addr=proxy_addr, headers=headers, abroad=True)
+    if not html_str:
+        return {"anchor_name": "", "is_live": False}
+        
     match = re.search(r'var ytInitialPlayerResponse = (.*?);var meta = document\.createElement', html_str)
     if not match:
         match = re.search(r'var ytInitialPlayerResponse = (.*?);var', html_str)
@@ -3025,15 +3032,19 @@ async def get_youtube_stream_url(url: str, proxy_addr: OptionalStr = None, cooki
 
     result = {"anchor_name": "", "is_live": False}
     if 'videoDetails' not in json_data:
-        print("Error: Please log in to YouTube on your device's webpage and configure cookies in the config.ini")
+        # Don't print an error here, as it can be noisy if the channel is just offline.
+        # The main loop will just report it as not live.
         return result
-    result['anchor_name'] = json_data['videoDetails']['author']
+    
+    result['anchor_name'] = json_data['videoDetails'].get('author', 'YouTube')
     live_status = json_data['videoDetails'].get('isLive')
-    if live_status:
-        live_title = json_data['videoDetails']['title']
-        m3u8_url = json_data['streamingData']["hlsManifestUrl"]
-        play_url_list = await get_play_url_list(m3u8_url, proxy=proxy_addr, header=headers, abroad=True)
-        result |= {"is_live": True, "title": live_title, "m3u8_url": m3u8_url, "play_url_list": play_url_list}
+    
+    if live_status and 'streamingData' in json_data:
+        live_title = json_data['videoDetails'].get('title', 'Unknown Title')
+        m3u8_url = json_data['streamingData'].get("hlsManifestUrl")
+        if m3u8_url:
+            play_url_list = await get_play_url_list(m3u8_url, proxy=proxy_addr, header=headers, abroad=True)
+            result |= {"is_live": True, "title": live_title, "m3u8_url": m3u8_url, "play_url_list": play_url_list}
     return result
 
 
