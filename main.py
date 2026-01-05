@@ -1700,6 +1700,7 @@ def start_record(url_data: tuple, count_variable: int = -1) -> None:
                     print('\r检测直播间中...', end="")
         except Exception as e:
             logger.error(f"[{record_url}] 错误信息: {e} 发生错误的行数: {e.__traceback__.tb_lineno}")
+            with max_request_lock:
                 error_count += 1
                 error_window.append(1)
             time.sleep(2)
