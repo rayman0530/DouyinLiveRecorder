@@ -3019,7 +3019,82 @@ async def get_youtube_stream_url(url: str, proxy_addr: OptionalStr = None, cooki
     html_str = await async_req(url, proxy_addr=proxy_addr, headers=headers, abroad=True)
     if not html_str:
         return {"anchor_name": "", "is_live": False}
+
+    # Helper function to process JSON data and return result
+    async def process_youtube_data(json_data_in: dict) -> dict:
+        result_data = {"anchor_name": "", "is_live": False}
+        if 'videoDetails' not in json_data_in:
+            return result_data
         
+        result_data['anchor_name'] = json_data_in['videoDetails'].get('author', 'YouTube')
+        is_live = json_data_in['videoDetails'].get('isLive')
+        
+        if is_live and 'streamingData' in json_data_in:
+            live_title = json_data_in['videoDetails'].get('title', 'Unknown Title')
+            m3u8_url_in = json_data_in['streamingData'].get("hlsManifestUrl")
+            if m3u8_url_in:
+                # Use standard headers for fetching m3u8 content
+                play_url_list_in = await get_play_url_list(m3u8_url_in, proxy=proxy_addr, header=headers, abroad=True)
+                result_data |= {"is_live": True, "title": live_title, "m3u8_url": m3u8_url_in, "play_url_list": play_url_list_in}
+        return result_data
+
+    # Attempt to use Android API (innertube) for better stability (mimic yt-dlp)
+    try:
+        api_key_match = re.search(r'"INNERTUBE_API_KEY":"([^"]+)"', html_str)
+        
+        # Try finding videoId
+        video_id = None
+        video_id_match = re.search(r'"videoId":"([^"]+)"', html_str)
+        if video_id_match:
+            video_id = video_id_match.group(1)
+        else:
+            # Try parsing initial response for videoId if regex fails
+            match_init = re.search(r'var ytInitialPlayerResponse = (.*?);var', html_str)
+            if match_init:
+                try:
+                    jd = json.loads(match_init.group(1))
+                    video_id = jd.get('videoDetails', {}).get('videoId')
+                except Exception:
+                    pass
+
+        if api_key_match and video_id:
+            api_key = api_key_match.group(1)
+            android_url = f"https://www.youtube.com/youtubei/v1/player?key={api_key}"
+            android_payload = {
+                "context": {
+                    "client": {
+                        "clientName": "ANDROID",
+                        "clientVersion": "19.29.35",
+                        "androidSdkVersion": 30,
+                        "userAgent": "com.google.android.youtube/19.29.35 (Linux; U; Android 11; US;Pixel 5 Build/RQ3A.211001.001) gzip",
+                        "hl": "en",
+                        "timeZone": "UTC",
+                        "utcOffsetMinutes": 0
+                    }
+                },
+                "videoId": video_id,
+                "playbackContext": {
+                    "contentPlaybackContext": {
+                        "html5Preference": "HTML5_PREF_WANTS"
+                    }
+                }
+            }
+            android_headers = {
+                "User-Agent": "com.google.android.youtube/19.29.35 (Linux; U; Android 11; US;Pixel 5 Build/RQ3A.211001.001) gzip",
+                "Content-Type": "application/json"
+            }
+            
+            api_resp = await async_req(android_url, proxy_addr=proxy_addr, headers=android_headers, json_data=android_payload, abroad=True)
+            if api_resp and isinstance(api_resp, str) and api_resp.startswith('{'):
+                api_json = json.loads(api_resp)
+                # Check if we got valid streaming data
+                if 'streamingData' in api_json:
+                    return await process_youtube_data(api_json)
+    except Exception as e:
+        # print(f"Android API attempt failed: {e}") 
+        pass
+
+    # Fallback to Web scraping (original logic)
     match = re.search(r'var ytInitialPlayerResponse = (.*?);var meta = document\.createElement', html_str)
     if not match:
         match = re.search(r'var ytInitialPlayerResponse = (.*?);var', html_str)
@@ -3030,22 +3105,7 @@ async def get_youtube_stream_url(url: str, proxy_addr: OptionalStr = None, cooki
     else:
         json_data = {}
 
-    result = {"anchor_name": "", "is_live": False}
-    if 'videoDetails' not in json_data:
-        # Don't print an error here, as it can be noisy if the channel is just offline.
-        # The main loop will just report it as not live.
-        return result
-    
-    result['anchor_name'] = json_data['videoDetails'].get('author', 'YouTube')
-    live_status = json_data['videoDetails'].get('isLive')
-    
-    if live_status and 'streamingData' in json_data:
-        live_title = json_data['videoDetails'].get('title', 'Unknown Title')
-        m3u8_url = json_data['streamingData'].get("hlsManifestUrl")
-        if m3u8_url:
-            play_url_list = await get_play_url_list(m3u8_url, proxy=proxy_addr, header=headers, abroad=True)
-            result |= {"is_live": True, "title": live_title, "m3u8_url": m3u8_url, "play_url_list": play_url_list}
-    return result
+    return await process_youtube_data(json_data)
 
 
 @trace_error_decorator

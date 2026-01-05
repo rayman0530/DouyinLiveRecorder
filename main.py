@@ -516,6 +516,35 @@ def check_subprocess(record_name: str, record_url: str, ffmpeg_command: list, sa
     return False
 
 
+def check_native_download(record_name: str, record_url: str, m3u8_url: str, save_file_path: str, headers: dict) -> bool:
+    from src.downloader import NativeHLSDownloader
+
+    print(f"\r{record_name} Native Downloader Started: {save_file_path}")
+
+    downloader = NativeHLSDownloader(m3u8_url, save_file_path, headers)
+    download_thread = threading.Thread(target=downloader.start)
+    download_thread.start()
+
+    while download_thread.is_alive():
+        if record_url in url_comments or exit_recording:
+            color_obj.print_colored(f"[{record_name}]录制时已被注释,本条线程将会退出", color_obj.YELLOW)
+            clear_record_info(record_name, record_url)
+            downloader.stop()
+            download_thread.join()
+            return True
+        time.sleep(1)
+
+    if downloader.failed:
+        color_obj.print_colored(f"\n{record_name} Native download failed, switching to ffmpeg...\n", color_obj.YELLOW)
+        recording.discard(record_name)
+        return False
+
+    stop_time = time.strftime('%Y-%m-%d %H:%M:%S')
+    print(f"\n{record_name} {stop_time} 直播录制完成\n")
+    recording.discard(record_name)
+    return True
+
+
 def clean_name(input_text):
     cleaned_name = re.sub(rstr, "_", input_text.strip()).strip('_')
     cleaned_name = cleaned_name.replace("（", "(").replace("）", ")")
@@ -1289,6 +1318,8 @@ def start_record(url_data: tuple, count_variable: int = -1) -> None:
                                     only_audio_record = True
 
                                 record_save_type = video_save_type
+                                if platform == 'Youtube':
+                                    record_save_type = "TS"
 
                                 if is_flv_preferred_platform(record_url) and port_info.get('flv_url'):
                                     codec = utils.get_query_params(port_info['flv_url'], "codec")
@@ -1586,6 +1617,25 @@ def start_record(url_data: tuple, count_variable: int = -1) -> None:
                                         print(f'{rec_info}/{filename}')
 
                                         try:
+                                            native_success = False
+                                            if platform == 'Youtube':
+                                                # Use Native Downloader (No splitting support yet, forces single file)
+                                                save_file_path_native = f"{full_path}/{anchor_name}_{title_in_name}{now}.ts"
+                                                m3u8_url = port_info.get("m3u8_url")
+                                                native_success = check_native_download(
+                                                    record_name, record_url, m3u8_url, save_file_path_native, headers
+                                                )
+                                                if native_success:
+                                                    if converts_to_mp4:
+                                                         threading.Thread(
+                                                            target=converts_mp4,
+                                                            args=(save_file_path_native, delete_origin_file)
+                                                        ).start()
+                                                    return
+                                                else:
+                                                    # Fallback to ffmpeg, ensure record_name is tracked again
+                                                    recording.add(record_name)
+
                                             save_file_path = f"{full_path}/{anchor_name}_{title_in_name}{now}_%03d.ts"
                                             command = [
                                                 "-c:v", "copy",
@@ -1634,6 +1684,20 @@ def start_record(url_data: tuple, count_variable: int = -1) -> None:
                                         save_file_path = full_path + '/' + filename
 
                                         try:
+                                            native_success = False
+                                            if platform == 'Youtube':
+                                                m3u8_url = port_info.get("m3u8_url")
+                                                native_success = check_native_download(
+                                                    record_name, record_url, m3u8_url, save_file_path, headers
+                                                )
+                                                if native_success:
+                                                    threading.Thread(
+                                                        target=converts_mp4, args=(save_file_path, delete_origin_file)
+                                                    ).start()
+                                                    return
+                                                else:
+                                                    recording.add(record_name)
+
                                             command = [
                                                 "-c:v", "copy",
                                                 "-c:a", "copy",
