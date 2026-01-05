@@ -430,8 +430,24 @@ def check_subprocess(record_name: str, record_url: str, ffmpeg_command: list, sa
                      script_command: str | None = None) -> bool:
     save_file_path = ffmpeg_command[-1]
     process = subprocess.Popen(
-        ffmpeg_command, stdin=subprocess.PIPE, stderr=subprocess.STDOUT, startupinfo=get_startup_info(os_type)
+        ffmpeg_command, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, startupinfo=get_startup_info(os_type)
     )
+
+    def log_monitor():
+        while True:
+            line = process.stdout.readline()
+            if not line:
+                break
+            try:
+                decoded_line = line.decode('utf-8', errors='ignore').strip()
+                if decoded_line:
+                    print(f"[{record_name}] {decoded_line}")
+            except Exception:
+                pass
+
+    log_thread = threading.Thread(target=log_monitor)
+    log_thread.daemon = True
+    log_thread.start()
 
     subs_file_path = save_file_path.rsplit('.', maxsplit=1)[0]
     subs_thread_name = f'subs_{Path(subs_file_path).name}'
@@ -614,7 +630,7 @@ def start_record(url_data: tuple, count_variable: int = -1) -> None:
                                 port_info = asyncio.run(
                                     stream.get_tiktok_stream_url(json_data, record_quality, proxy_address))
                             else:
-                                logger.error("错误信息: 网络异常，请检查网络是否能正常访问TikTok平台")
+                                logger.error(f"[{record_url}] 错误信息: 网络异常，请检查网络是否能正常访问TikTok平台")
 
                     elif record_url.find("https://live.kuaishou.com/") > -1:
                         platform = '快手直播'
@@ -701,7 +717,7 @@ def start_record(url_data: tuple, count_variable: int = -1) -> None:
                                     )
                                 port_info = asyncio.run(stream.get_stream_url(json_data, record_quality, spec=True))
                             else:
-                                logger.error("错误信息: 网络异常，请检查本网络是否能正常访问SOOP平台")
+                                logger.error(f"[{record_url}] 错误信息: 网络异常，请检查本网络是否能正常访问SOOP平台")
 
                     elif record_url.find("weverse.io/") > -1:
                         platform = 'Weverse'
@@ -723,7 +739,7 @@ def start_record(url_data: tuple, count_variable: int = -1) -> None:
 
                                 port_info = asyncio.run(stream.get_weverse_stream_url(json_data))
                             else:
-                                logger.error("错误信息: 网络异常，请检查本网络是否能正常访问Weverse平台")
+                                logger.error(f"[{record_url}] 错误信息: 网络异常，请检查本网络是否能正常访问Weverse平台")
 
                     elif record_url.find("cc.163.com/") > -1:
                         platform = '网易CC直播'
@@ -749,7 +765,7 @@ def start_record(url_data: tuple, count_variable: int = -1) -> None:
                                 ))
                                 port_info = asyncio.run(stream.get_stream_url(json_data, record_quality, spec=True))
                             else:
-                                logger.error("错误信息: 网络异常，请检查本网络是否能正常访问PandaTV直播平台")
+                                logger.error(f"[{record_url}] 错误信息: 网络异常，请检查本网络是否能正常访问PandaTV直播平台")
 
                     elif record_url.find("fm.missevan.com/") > -1:
                         platform = '猫耳FM直播'
@@ -767,7 +783,7 @@ def start_record(url_data: tuple, count_variable: int = -1) -> None:
                                     cookies=winktv_cookie))
                                 port_info = asyncio.run(stream.get_stream_url(json_data, record_quality, spec=True))
                             else:
-                                logger.error("错误信息: 网络异常，请检查本网络是否能正常访问WinkTV直播平台")
+                                logger.error(f"[{record_url}] 错误信息: 网络异常，请检查本网络是否能正常访问WinkTV直播平台")
 
                     elif record_url.find("www.flextv.co.kr/") > -1 or record_url.find("www.ttinglive.com/") > -1:
                         platform = 'FlexTV'
@@ -789,7 +805,7 @@ def start_record(url_data: tuple, count_variable: int = -1) -> None:
                                 else:
                                     port_info = json_data
                             else:
-                                logger.error("错误信息: 网络异常，请检查本网络是否能正常访问FlexTV直播平台")
+                                logger.error(f"[{record_url}] 错误信息: 网络异常，请检查本网络是否能正常访问FlexTV直播平台")
 
                     elif record_url.find("look.163.com/") > -1:
                         platform = 'Look直播'
@@ -817,7 +833,7 @@ def start_record(url_data: tuple, count_variable: int = -1) -> None:
                                     )
 
                             else:
-                                logger.error("错误信息: 网络异常，请检查本网络是否能正常访问PopkonTV直播平台")
+                                logger.error(f"[{record_url}] 错误信息: 网络异常，请检查本网络是否能正常访问PopkonTV直播平台")
 
                     elif record_url.find("twitcasting.tv/") > -1:
                         platform = 'TwitCasting'
@@ -872,7 +888,7 @@ def start_record(url_data: tuple, count_variable: int = -1) -> None:
                                 ))
                                 port_info = asyncio.run(stream.get_stream_url(json_data, record_quality, spec=True))
                             else:
-                                logger.error("错误信息: 网络异常，请检查本网络是否能正常访问TwitchTV直播平台")
+                                logger.error(f"[{record_url}] 错误信息: 网络异常，请检查本网络是否能正常访问TwitchTV直播平台")
 
                     elif record_url.find("www.liveme.com/") > -1:
                         if global_proxy or proxy_address:
@@ -881,7 +897,7 @@ def start_record(url_data: tuple, count_variable: int = -1) -> None:
                                 port_info = asyncio.run(spider.get_liveme_stream_url(
                                     url=record_url, proxy_addr=proxy_address, cookies=liveme_cookie))
                         else:
-                            logger.error("错误信息: 网络异常，请检查本网络是否能正常访问LiveMe直播平台")
+                            logger.error(f"[{record_url}] 错误信息: 网络异常，请检查本网络是否能正常访问LiveMe直播平台")
 
                     elif record_url.find("www.huajiao.com/") > -1:
                         platform = '花椒直播'
@@ -1029,7 +1045,7 @@ def start_record(url_data: tuple, count_variable: int = -1) -> None:
                                         url=record_url, proxy_addr=proxy_address, cookies=faceit_cookie))
                                     port_info = asyncio.run(stream.get_stream_url(json_data, record_quality, spec=True))
                             else:
-                                logger.error("错误信息: 网络异常，请检查本网络是否能正常访问faceit直播平台")
+                                logger.error(f"[{record_url}] 错误信息: 网络异常，请检查本网络是否能正常访问faceit直播平台")
 
                     elif record_url.find("www.miguvideo.com") > -1 or record_url.find("m.miguvideo.com") > -1:
                         platform = '咪咕直播'
@@ -1066,7 +1082,7 @@ def start_record(url_data: tuple, count_variable: int = -1) -> None:
                                 ))
                                 port_info = asyncio.run(stream.get_instagram_stream_url(json_data))
                             else:
-                                logger.error("错误信息: 网络异常，请检查本网络是否能正常访问Instagram平台")
+                                logger.error(f"[{record_url}] 错误信息: 网络异常，请检查本网络是否能正常访问Instagram平台")
 
                     elif record_url.find(".m3u8") > -1 or record_url.find(".flv") > -1:
                         platform = '自定义录制直播'
@@ -1345,7 +1361,7 @@ def start_record(url_data: tuple, count_variable: int = -1) -> None:
                                             return
 
                                     except subprocess.CalledProcessError as e:
-                                        logger.error(f"错误信息: {e} 发生错误的行数: {e.__traceback__.tb_lineno}")
+                                        logger.error(f"[{record_name}] 错误信息: {e} 发生错误的行数: {e.__traceback__.tb_lineno}")
                                         with max_request_lock:
                                             error_count += 1
                                             error_window.append(1)
@@ -1389,7 +1405,7 @@ def start_record(url_data: tuple, count_variable: int = -1) -> None:
                                         color_obj.print_colored(
                                             f"\n{anchor_name} {time.strftime('%Y-%m-%d %H:%M:%S')} 直播录制出错,请检查网络\n",
                                             color_obj.RED)
-                                        logger.error(f"错误信息: {e} 发生错误的行数: {e.__traceback__.tb_lineno}")
+                                        logger.error(f"[{record_name}] 错误信息: {e} 发生错误的行数: {e.__traceback__.tb_lineno}")
                                         with max_request_lock:
                                             error_count += 1
                                             error_window.append(1)
@@ -1437,7 +1453,7 @@ def start_record(url_data: tuple, count_variable: int = -1) -> None:
                                             return
 
                                     except subprocess.CalledProcessError as e:
-                                        logger.error(f"错误信息: {e} 发生错误的行数: {e.__traceback__.tb_lineno}")
+                                        logger.error(f"[{record_name}] 错误信息: {e} 发生错误的行数: {e.__traceback__.tb_lineno}")
                                         with max_request_lock:
                                             error_count += 1
                                             error_window.append(1)
@@ -1511,7 +1527,7 @@ def start_record(url_data: tuple, count_variable: int = -1) -> None:
                                             return
 
                                     except subprocess.CalledProcessError as e:
-                                        logger.error(f"错误信息: {e} 发生错误的行数: {e.__traceback__.tb_lineno}")
+                                        logger.error(f"[{record_name}] 错误信息: {e} 发生错误的行数: {e.__traceback__.tb_lineno}")
                                         with max_request_lock:
                                             error_count += 1
                                             error_window.append(1)
@@ -1558,7 +1574,7 @@ def start_record(url_data: tuple, count_variable: int = -1) -> None:
                                             return
 
                                     except subprocess.CalledProcessError as e:
-                                        logger.error(f"错误信息: {e} 发生错误的行数: {e.__traceback__.tb_lineno}")
+                                        logger.error(f"[{record_name}] 错误信息: {e} 发生错误的行数: {e.__traceback__.tb_lineno}")
                                         with max_request_lock:
                                             error_count += 1
                                             error_window.append(1)
@@ -1607,8 +1623,7 @@ def start_record(url_data: tuple, count_variable: int = -1) -> None:
                                                 return
 
                                         except subprocess.CalledProcessError as e:
-                                            logger.error(
-                                                f"错误信息: {e} 发生错误的行数: {e.__traceback__.tb_lineno}")
+                                            logger.error(f"[{record_name}] 错误信息: {e} 发生错误的行数: {e.__traceback__.tb_lineno}")
                                             with max_request_lock:
                                                 error_count += 1
                                                 error_window.append(1)
@@ -1642,7 +1657,7 @@ def start_record(url_data: tuple, count_variable: int = -1) -> None:
                                                 return
 
                                         except subprocess.CalledProcessError as e:
-                                            logger.error(f"错误信息: {e} 发生错误的行数: {e.__traceback__.tb_lineno}")
+                                            logger.error(f"[{record_name}] 错误信息: {e} 发生错误的行数: {e.__traceback__.tb_lineno}")
                                             with max_request_lock:
                                                 error_count += 1
                                                 error_window.append(1)
@@ -1650,7 +1665,7 @@ def start_record(url_data: tuple, count_variable: int = -1) -> None:
                                 count_time = time.time()
 
                 except Exception as e:
-                    logger.error(f"错误信息: {e} 发生错误的行数: {e.__traceback__.tb_lineno}")
+                    logger.error(f"[{record_url}] 错误信息: {e} 发生错误的行数: {e.__traceback__.tb_lineno}")
                     with max_request_lock:
                         error_count += 1
                         error_window.append(1)
@@ -1684,8 +1699,7 @@ def start_record(url_data: tuple, count_variable: int = -1) -> None:
                 if loop_time:
                     print('\r检测直播间中...', end="")
         except Exception as e:
-            logger.error(f"错误信息: {e} 发生错误的行数: {e.__traceback__.tb_lineno}")
-            with max_request_lock:
+            logger.error(f"[{record_url}] 错误信息: {e} 发生错误的行数: {e.__traceback__.tb_lineno}")
                 error_count += 1
                 error_window.append(1)
             time.sleep(2)
