@@ -577,7 +577,8 @@ def get_record_headers(platform, live_url):
         '浪Live': 'referer:https://www.lang.live',
         'shopee': f'origin:{live_domain}',
         'Blued直播': 'referer:https://app.blued.cn',
-        'Weverse': 'origin:https://weverse.io'
+        'Weverse': 'origin:https://weverse.io',
+        'B站直播': 'referer:https://live.bilibili.com/'
     }
     return record_headers.get(platform)
 
@@ -1247,6 +1248,8 @@ def start_record(url_data: tuple, count_variable: int = -1) -> None:
                                 user_agent = ("Mozilla/5.0 (Linux; Android 11; SAMSUNG SM-G973U) AppleWebKit/537.36 ("
                                               "KHTML, like Gecko) SamsungBrowser/14.2 Chrome/87.0.4280.141 Mobile "
                                               "Safari/537.36")
+                                if platform == 'B站直播':
+                                    user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:127.0) Gecko/20100101 Firefox/127.0"
 
                                 rw_timeout = "15000000"
                                 analyzeduration = "20000000"
