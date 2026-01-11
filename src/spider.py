@@ -2022,14 +2022,28 @@ async def get_weibo_stream_data(url: str, proxy_addr: OptionalStr = None, cookie
     if 'show/' in url:
         room_id = url.split('?')[0].split('show/')[1]
     else:
-        uid = url.split('?')[0].rsplit('/u/', maxsplit=1)[1]
+        uid = url.split('?')[0].rsplit('/u/', maxsplit=1)[1].strip('/')
         web_api = f'https://weibo.com/ajax/statuses/mymblog?uid={uid}&page=1&feature=0'
         json_str = await async_req(web_api, proxy_addr=proxy_addr, headers=headers)
         json_data = json.loads(json_str)
         for i in json_data['data']['list']:
+            # Strategy 1: Check page_info for room_id (Existing logic)
             if 'page_info' in i and i['page_info']['object_type'] == 'live':
                 room_id = i['page_info']['object_id']
                 break
+            # Strategy 2: Check media_info for direct stream URL (Fallback)
+            elif 'media_info' in i and 'live_ld' in i['media_info']:
+                live_ld = i['media_info']['live_ld']
+                if live_ld:
+                    result = {
+                        "anchor_name": i['user']['screen_name'],
+                        "is_live": True,
+                        "title": i.get('text_raw', 'Weibo Live'),
+                        "play_url_list": [
+                            {"m3u8_url": live_ld, "flv_url": live_ld.replace('.m3u8', '.flv')},
+                        ]
+                    }
+                    return result
 
     result = {"anchor_name": '', "is_live": False}
     if room_id:
