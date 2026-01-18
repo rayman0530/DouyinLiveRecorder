@@ -28,7 +28,7 @@ import execjs
 import urllib.request
 from . import JS_SCRIPT_PATH, utils
 from .utils import trace_error_decorator, generate_random_string
-from .logger import script_path
+from .logger import script_path, logger
 from .room import get_sec_user_id, get_unique_id, UnsupportedUrlError
 from .http_clients.async_http import async_req
 from .ab_sign import ab_sign
@@ -2025,8 +2025,15 @@ async def get_weibo_stream_data(url: str, proxy_addr: OptionalStr = None, cookie
         uid = url.split('?')[0].rsplit('/u/', maxsplit=1)[1].strip('/')
         web_api = f'https://weibo.com/ajax/statuses/mymblog?uid={uid}&page=1&feature=0'
         json_str = await async_req(web_api, proxy_addr=proxy_addr, headers=headers)
-        json_data = json.loads(json_str)
+        try:
+            json_data = json.loads(json_str)
+        except json.decoder.JSONDecodeError as e:
+            logger.error(f"Weibo json decode error: {e}, Response: {json_str[:200]}")
+            return {"anchor_name": '', "is_live": False}
+        anchor_name = ''
         for i in json_data['data']['list']:
+            if not anchor_name and 'user' in i and 'screen_name' in i['user']:
+                anchor_name = i['user']['screen_name']
             # Strategy 1: Check page_info for room_id (Existing logic)
             if 'page_info' in i and i['page_info']['object_type'] == 'live':
                 room_id = i['page_info']['object_id']
@@ -2045,12 +2052,16 @@ async def get_weibo_stream_data(url: str, proxy_addr: OptionalStr = None, cookie
                     }
                     return result
 
-    result = {"anchor_name": '', "is_live": False}
+    result = {"anchor_name": anchor_name, "is_live": False}
     if room_id:
         app_api = f'https://weibo.com/l/pc/anchor/live?live_id={room_id}'
         # app_api = f'https://weibo.com/l/!/2/wblive/room/show_pc_live.json?live_id={room_id}'
         json_str = await async_req(url=app_api, proxy_addr=proxy_addr, headers=headers)
-        json_data = json.loads(json_str)
+        try:
+            json_data = json.loads(json_str)
+        except json.decoder.JSONDecodeError as e:
+            logger.error(f"Weibo json decode error: {e}, Response: {json_str[:200]}")
+            return result
         anchor_name = json_data['data']['user_info']['name']
         result["anchor_name"] = anchor_name
         live_status = json_data['data']['item']['status']
