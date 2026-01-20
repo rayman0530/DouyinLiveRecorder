@@ -2011,7 +2011,6 @@ async def get_baidu_stream_data(url: str, proxy_addr: OptionalStr = None, cookie
 async def get_weibo_stream_data(url: str, proxy_addr: OptionalStr = None, cookies: OptionalStr = None) -> dict:
     headers = {
         'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8,en-GB;q=0.7,en-US;q=0.6',
-        'Cookie': 'XSRF-TOKEN=qAP-pIY5V4tO6blNOhA4IIOD; SUB=_2AkMRNMCwf8NxqwFRmfwWymPrbI9-zgzEieKnaDFrJRMxHRl-yT9kqmkhtRB6OrTuX5z9N_7qk9C3xxEmNR-8WLcyo2PM; SUBP=0033WrSXqPxfM72-Ws9jqgMF55529P9D9WWemwcqkukCduUO11o9sBqA; WBPSESS=Wk6CxkYDejV3DDBcnx2LOXN9V1LjdSTNQPMbBDWe4lO2HbPmXG_coMffJ30T-Avn_ccQWtEYFcq9fab1p5RR6PEI6w661JcW7-56BszujMlaiAhLX-9vT4Zjboy1yf2l',
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:124.0) Gecko/20100101 Firefox/124.0',
         'Referer': 'https://weibo.com/u/5885340893'
     }
@@ -2028,7 +2027,10 @@ async def get_weibo_stream_data(url: str, proxy_addr: OptionalStr = None, cookie
         try:
             json_data = json.loads(json_str)
         except json.decoder.JSONDecodeError as e:
-            logger.error(f"Weibo json decode error: {e}, Response: {json_str[:200]}")
+            if "weibo.com/login.php" in json_str or "通行证" in json_str:
+                logger.error(f"Weibo cookie expired or missing. Please update 'weibo_cookie' in config/config.ini. Response: {json_str[:200]}")
+            else:
+                logger.error(f"Weibo json decode error: {e}, Response: {json_str[:200]}")
             return {"anchor_name": '', "is_live": False}
         anchor_name = ''
         for i in json_data['data']['list']:
@@ -2060,7 +2062,10 @@ async def get_weibo_stream_data(url: str, proxy_addr: OptionalStr = None, cookie
         try:
             json_data = json.loads(json_str)
         except json.decoder.JSONDecodeError as e:
-            logger.error(f"Weibo json decode error: {e}, Response: {json_str[:200]}")
+            if "weibo.com/login.php" in json_str or "通行证" in json_str:
+                logger.error(f"Weibo cookie expired or missing. Please update 'weibo_cookie' in config/config.ini. Response: {json_str[:200]}")
+            else:
+                logger.error(f"Weibo json decode error: {e}, Response: {json_str[:200]}")
             return result
         anchor_name = json_data['data']['user_info']['name']
         result["anchor_name"] = anchor_name
