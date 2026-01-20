@@ -600,6 +600,7 @@ def select_source_url(link, stream_info):
 
 def start_record(url_data: tuple, count_variable: int = -1) -> None:
     global error_count, weverse_cookie, weverse_refresh_token
+    retry_count = 0
 
     while True:
         try:
@@ -1145,8 +1146,12 @@ def start_record(url_data: tuple, count_variable: int = -1) -> None:
                         with max_request_lock:
                             error_count += 1
                             error_window.append(1)
+                        retry_count += 1
                     else:
+                        retry_count = 0
                         anchor_name = clean_name(anchor_name)
+                        if platform:
+                            anchor_name = f'[{platform}] {anchor_name}'
                         record_name = f'序号{count_variable} {anchor_name}'
 
                         if record_url in url_comments:
@@ -1288,6 +1293,12 @@ def start_record(url_data: tuple, count_variable: int = -1) -> None:
                                 ]
 
                                 headers = get_record_headers(platform, record_url)
+                                if platform == 'Weverse':
+                                    if headers:
+                                        headers += f"\r\nCookie: {weverse_cookie}"
+                                    else:
+                                        headers = f"Cookie: {weverse_cookie}"
+
                                 if headers:
                                     ffmpeg_command.insert(11, "-headers")
                                     ffmpeg_command.insert(12, headers)
@@ -1399,6 +1410,7 @@ def start_record(url_data: tuple, count_variable: int = -1) -> None:
                                         with max_request_lock:
                                             error_count += 1
                                             error_window.append(1)
+                                        retry_count += 1
 
                                 if only_flv_record:
                                     logger.info(f"Use Direct Downloader to Download FLV Stream: {record_url}")
@@ -1443,6 +1455,7 @@ def start_record(url_data: tuple, count_variable: int = -1) -> None:
                                         with max_request_lock:
                                             error_count += 1
                                             error_window.append(1)
+                                        retry_count += 1
 
                                 elif record_save_type == "FLV":
                                     filename = anchor_name + f'_{title_in_name}' + now + ".flv"
@@ -1491,6 +1504,7 @@ def start_record(url_data: tuple, count_variable: int = -1) -> None:
                                         with max_request_lock:
                                             error_count += 1
                                             error_window.append(1)
+                                        retry_count += 1
 
                                     try:
                                         if converts_to_mp4:
@@ -1565,6 +1579,7 @@ def start_record(url_data: tuple, count_variable: int = -1) -> None:
                                         with max_request_lock:
                                             error_count += 1
                                             error_window.append(1)
+                                        retry_count += 1
 
                                 elif record_save_type == "MP4":
                                     filename = anchor_name + f'_{title_in_name}' + now + ".mp4"
@@ -1612,6 +1627,7 @@ def start_record(url_data: tuple, count_variable: int = -1) -> None:
                                         with max_request_lock:
                                             error_count += 1
                                             error_window.append(1)
+                                        retry_count += 1
 
                                 else:
                                     if split_video_by_time:
@@ -1736,13 +1752,14 @@ def start_record(url_data: tuple, count_variable: int = -1) -> None:
                     with max_request_lock:
                         error_count += 1
                         error_window.append(1)
+                    retry_count += 1
 
                 num = random.randint(-5, 5) + delay_default
                 if num < 0:
                     num = 0
                 x = num
 
-                if error_count > 20:
+                if retry_count > 5:
                     x = x + 60
                     color_obj.print_colored("\r瞬时错误太多,延迟加60秒", color_obj.YELLOW)
 
@@ -1770,6 +1787,7 @@ def start_record(url_data: tuple, count_variable: int = -1) -> None:
             with max_request_lock:
                 error_count += 1
                 error_window.append(1)
+            retry_count += 1
             time.sleep(2)
 
 
