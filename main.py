@@ -1150,9 +1150,10 @@ def start_record(url_data: tuple, count_variable: int = -1) -> None:
                     else:
                         retry_count = 0
                         anchor_name = clean_name(anchor_name)
+                        show_anchor_name = anchor_name
                         if platform:
-                            anchor_name = f'[{platform}] {anchor_name}'
-                        record_name = f'序号{count_variable} {anchor_name}'
+                            show_anchor_name = f'[{platform}] {anchor_name}'
+                        record_name = f'序号{count_variable} {show_anchor_name}'
 
                         if record_url in url_comments:
                             print(f"[{anchor_name}]已被注释,本条线程将会退出")
@@ -1310,7 +1311,7 @@ def start_record(url_data: tuple, count_variable: int = -1) -> None:
                                 recording.add(record_name)
                                 start_record_time = datetime.datetime.now()
                                 recording_time_list[record_name] = [start_record_time, record_quality_zh]
-                                rec_info = f"\r{anchor_name} 准备开始录制视频: {full_path}"
+                                rec_info = f"\r{show_anchor_name} 准备开始录制视频: {full_path}"
                                 if show_url:
                                     re_plat = ('WinkTV', 'PandaTV', 'ShowRoom', 'CHZZK', 'Youtube')
                                     if platform in re_plat:
@@ -1350,7 +1351,7 @@ def start_record(url_data: tuple, count_variable: int = -1) -> None:
                                                           f"{name_format}.{extension}")
 
                                         if split_video_by_time:
-                                            print(f'\r{anchor_name} 准备开始录制音频: {save_file_path}')
+                                            print(f'\r{show_anchor_name} 准备开始录制音频: {save_file_path}')
 
                                             if "MP3" in record_save_type:
                                                 command = [
@@ -1441,7 +1442,7 @@ def start_record(url_data: tuple, count_variable: int = -1) -> None:
                                             if download_success:
                                                 record_finished = True
                                                 print(
-                                                    f"\n{anchor_name} {time.strftime('%Y-%m-%d %H:%M:%S')} 直播录制完成\n")
+                                                    f"\n{show_anchor_name} {time.strftime('%Y-%m-%d %H:%M:%S')} 直播录制完成\n")
 
                                             recording.discard(record_name)
                                         else:
