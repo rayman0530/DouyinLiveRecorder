@@ -92,6 +92,14 @@ class NativeHLSDownloader:
                     # Parse Header Info
                     seq_match = re.search(r'#EXT-X-MEDIA-SEQUENCE:(\d+)', content)
                     current_seq = int(seq_match.group(1)) if seq_match else 0
+
+                    # Check for Initialization Segment (fMP4)
+                    map_match = re.search(r'#EXT-X-MAP:URI="(.*?)"', content)
+                    if map_match and self.last_seq == -1:
+                        init_uri = map_match.group(1)
+                        full_init_url = urljoin(self.m3u8_url, init_uri)
+                        print(f"Downloading Initialization Segment: {full_init_url}")
+                        self.download_segment(full_init_url, f)
                     
                     target_duration_match = re.search(r'#EXT-X-TARGETDURATION:(\d+)', content)
                     target_duration = float(target_duration_match.group(1)) if target_duration_match else 5.0

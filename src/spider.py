@@ -2742,7 +2742,9 @@ async def get_chzzk_stream_data(url: str, proxy_addr: OptionalStr = None, cookie
     play_api = f'https://api.chzzk.naver.com/service/v3/channels/{room_id}/live-detail'
     json_str = await async_req(play_api, proxy_addr=proxy_addr, headers=headers, abroad=True)
     json_data = json.loads(json_str)
-    live_data = json_data['content']
+    live_data = json_data.get('content')
+    if not live_data:
+        return {"anchor_name": "", "is_live": False}
     anchor_name = live_data['channel']['channelName']
     live_status = live_data['status']
 
