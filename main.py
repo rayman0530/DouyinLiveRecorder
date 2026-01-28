@@ -1284,7 +1284,8 @@ def start_record(url_data: tuple, count_variable: int = -1) -> None:
                                     "-bufsize", bufsize,
                                     "-sn", "-dn",
                                     "-reconnect_delay_max", "60",
-                                    "-reconnect_streamed", "-reconnect_at_eof",
+                                    "-reconnect_streamed", "1",
+                                    "-reconnect_at_eof", "1",
                                     "-max_muxing_queue_size", max_muxing_queue_size,
                                     "-correct_ts_overflow", "1",
                                     "-avoid_negative_ts", "1"
@@ -1645,8 +1646,7 @@ def start_record(url_data: tuple, count_variable: int = -1) -> None:
                                                         ).start()
                                                     return
                                                 else:
-                                                    # Fallback to ffmpeg, ensure record_name is tracked again
-                                                    recording.add(record_name)
+                                                    raise Exception("Native download failed")
 
                                             save_file_path = f"{full_path}/{anchor_name}_{title_in_name}{now}_%03d.ts"
                                             command = [
@@ -1708,7 +1708,7 @@ def start_record(url_data: tuple, count_variable: int = -1) -> None:
                                                     ).start()
                                                     return
                                                 else:
-                                                    recording.add(record_name)
+                                                    raise Exception("Native download failed")
 
                                             command = [
                                                 "-c:v", "copy",
