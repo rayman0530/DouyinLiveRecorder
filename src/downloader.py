@@ -254,7 +254,10 @@ class NativeHLSDownloader:
                     except:
                         pass
                     return True
+                else:
+                    print(f"Segment download failed with status: {s_resp.status_code}")
+                    print(f"Response content: {s_resp.text[:200]}") # Print first 200 chars of error
             except Exception as e:
-                pass
+                print(f"Segment download exception: {type(e).__name__}: {e}")
             time.sleep(1)
         return False

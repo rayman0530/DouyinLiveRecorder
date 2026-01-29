@@ -1635,8 +1635,23 @@ def start_record(url_data: tuple, count_variable: int = -1) -> None:
                                                 # Use Native Downloader (No splitting support yet, forces single file)
                                                 save_file_path_native = f"{full_path}/{anchor_name}_{title_in_name}{now}.ts"
                                                 m3u8_url = port_info.get("m3u8_url")
+
+                                                current_headers = headers
+                                                if platform == 'Youtube':
+                                                    current_headers = {
+                                                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                                                    }
+                                                    socs_cookie = 'SOCS=CAESEwgDEgk0ODE3Nzk3MjQaAmVuIAEaBgiA_LyaBg'
+                                                    if youtube_cookie:
+                                                        if 'SOCS=' not in youtube_cookie:
+                                                            current_headers['Cookie'] = f"{socs_cookie}; {youtube_cookie}"
+                                                        else:
+                                                            current_headers['Cookie'] = youtube_cookie
+                                                    else:
+                                                        current_headers['Cookie'] = socs_cookie
+
                                                 native_success = check_native_download(
-                                                    record_name, record_url, m3u8_url, save_file_path_native, headers
+                                                    record_name, record_url, m3u8_url, save_file_path_native, current_headers
                                                 )
                                                 if native_success:
                                                     if converts_to_mp4:
@@ -1699,8 +1714,23 @@ def start_record(url_data: tuple, count_variable: int = -1) -> None:
                                             native_success = False
                                             if platform in ['Youtube', 'CHZZK']:
                                                 m3u8_url = port_info.get("m3u8_url")
+
+                                                current_headers = headers
+                                                if platform == 'Youtube':
+                                                    current_headers = {
+                                                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                                                    }
+                                                    socs_cookie = 'SOCS=CAESEwgDEgk0ODE3Nzk3MjQaAmVuIAEaBgiA_LyaBg'
+                                                    if youtube_cookie:
+                                                        if 'SOCS=' not in youtube_cookie:
+                                                            current_headers['Cookie'] = f"{socs_cookie}; {youtube_cookie}"
+                                                        else:
+                                                            current_headers['Cookie'] = youtube_cookie
+                                                    else:
+                                                        current_headers['Cookie'] = socs_cookie
+
                                                 native_success = check_native_download(
-                                                    record_name, record_url, m3u8_url, save_file_path, headers
+                                                    record_name, record_url, m3u8_url, save_file_path, current_headers
                                                 )
                                                 if native_success:
                                                     threading.Thread(
