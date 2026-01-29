@@ -1639,16 +1639,25 @@ def start_record(url_data: tuple, count_variable: int = -1) -> None:
                                                 current_headers = headers
                                                 if platform == 'Youtube':
                                                     current_headers = {
-                                                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                                                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
                                                         'Accept': '*/*',
                                                         'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
                                                         'Origin': 'https://www.youtube.com',
                                                         'Referer': 'https://www.youtube.com/',
                                                         'Connection': 'keep-alive',
+                                                        'Sec-Fetch-Dest': 'empty',
+                                                        'Sec-Fetch-Mode': 'cors',
+                                                        'Sec-Fetch-Site': 'same-site',
                                                     }
                                                     
+                                                    socs_cookie = 'SOCS=CAESEwgDEgk0ODE3Nzk3MjQaAmVuIAEaBgiA_LyaBg'
                                                     if youtube_cookie:
-                                                        current_headers['Cookie'] = youtube_cookie
+                                                        if 'SOCS=' not in youtube_cookie:
+                                                            current_headers['Cookie'] = f"{socs_cookie}; {youtube_cookie}"
+                                                        else:
+                                                            current_headers['Cookie'] = youtube_cookie
+                                                    else:
+                                                        current_headers['Cookie'] = socs_cookie
 
                                                 native_success = check_native_download(
                                                     record_name, record_url, m3u8_url, save_file_path_native, current_headers
@@ -1718,16 +1727,25 @@ def start_record(url_data: tuple, count_variable: int = -1) -> None:
                                                 current_headers = headers
                                                 if platform == 'Youtube':
                                                     current_headers = {
-                                                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                                                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
                                                         'Accept': '*/*',
                                                         'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
                                                         'Origin': 'https://www.youtube.com',
                                                         'Referer': 'https://www.youtube.com/',
                                                         'Connection': 'keep-alive',
+                                                        'Sec-Fetch-Dest': 'empty',
+                                                        'Sec-Fetch-Mode': 'cors',
+                                                        'Sec-Fetch-Site': 'same-site',
                                                     }
                                                     
+                                                    socs_cookie = 'SOCS=CAESEwgDEgk0ODE3Nzk3MjQaAmVuIAEaBgiA_LyaBg'
                                                     if youtube_cookie:
-                                                        current_headers['Cookie'] = youtube_cookie
+                                                        if 'SOCS=' not in youtube_cookie:
+                                                            current_headers['Cookie'] = f"{socs_cookie}; {youtube_cookie}"
+                                                        else:
+                                                            current_headers['Cookie'] = youtube_cookie
+                                                    else:
+                                                        current_headers['Cookie'] = socs_cookie
 
                                                 native_success = check_native_download(
                                                     record_name, record_url, m3u8_url, save_file_path, current_headers
