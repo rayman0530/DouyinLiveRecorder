@@ -34,6 +34,9 @@ class NativeHLSDownloader:
 
     def start(self):
         print(f"Starting Native HLS Download: {self.output_path}")
+        # Debug: Show headers (mask cookie for safety)
+        safe_headers = {k: (v[:20] + "..." if k.lower() == 'cookie' else v) for k, v in self.headers.items()}
+        print(f"Downloader Headers: {safe_headers}")
         os.makedirs(os.path.dirname(os.path.abspath(self.output_path)), exist_ok=True)
         
         # Resolve Master Playlist if needed

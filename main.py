@@ -1639,13 +1639,10 @@ def start_record(url_data: tuple, count_variable: int = -1) -> None:
                                                 current_headers = headers
                                                 if platform == 'Youtube':
                                                     current_headers = {
-                                                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/115.0',
+                                                        'User-Agent': 'com.google.android.youtube/19.29.35 (Linux; U; Android 11; US;Pixel 5 Build/RQ3A.211001.001) gzip',
                                                         'Accept': '*/*',
                                                         'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
-                                                        'Origin': 'https://www.youtube.com',
-                                                        'Referer': 'https://www.youtube.com/',
-                                                        'Sec-Fetch-Mode': 'cors',
-                                                        'Sec-Fetch-Site': 'cross-site',
+                                                        'Connection': 'keep-alive',
                                                     }
                                                     socs_cookie = 'SOCS=CAESEwgDEgk0ODE3Nzk3MjQaAmVuIAEaBgiA_LyaBg'
                                                     if youtube_cookie:
@@ -1724,13 +1721,10 @@ def start_record(url_data: tuple, count_variable: int = -1) -> None:
                                                 current_headers = headers
                                                 if platform == 'Youtube':
                                                     current_headers = {
-                                                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/115.0',
+                                                        'User-Agent': 'com.google.android.youtube/19.29.35 (Linux; U; Android 11; US;Pixel 5 Build/RQ3A.211001.001) gzip',
                                                         'Accept': '*/*',
                                                         'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
-                                                        'Origin': 'https://www.youtube.com',
-                                                        'Referer': 'https://www.youtube.com/',
-                                                        'Sec-Fetch-Mode': 'cors',
-                                                        'Sec-Fetch-Site': 'cross-site',
+                                                        'Connection': 'keep-alive',
                                                     }
                                                     socs_cookie = 'SOCS=CAESEwgDEgk0ODE3Nzk3MjQaAmVuIAEaBgiA_LyaBg'
                                                     if youtube_cookie:
