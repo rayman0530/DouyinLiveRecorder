@@ -259,6 +259,7 @@ class NativeHLSDownloader:
                     return True
                 else:
                     print(f"Segment download failed with status: {s_resp.status_code}")
+                    print(f"Response headers: {s_resp.headers}")
                     print(f"Response content: {s_resp.text[:200]}") # Print first 200 chars of error
             except Exception as e:
                 print(f"Segment download exception: {type(e).__name__}: {e}")

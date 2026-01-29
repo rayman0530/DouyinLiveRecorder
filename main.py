@@ -1638,20 +1638,21 @@ def start_record(url_data: tuple, count_variable: int = -1) -> None:
 
                                                 current_headers = headers
                                                 if platform == 'Youtube':
+                                                    # Use the same UA as spider.py uses for playlist fetching
                                                     current_headers = {
-                                                        'User-Agent': 'com.google.android.youtube/19.29.35 (Linux; U; Android 11; US;Pixel 5 Build/RQ3A.211001.001) gzip',
+                                                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/115.0',
                                                         'Accept': '*/*',
                                                         'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
+                                                        'Referer': 'https://www.youtube.com/',
                                                         'Connection': 'keep-alive',
                                                     }
-                                                    socs_cookie = 'SOCS=CAESEwgDEgk0ODE3Nzk3MjQaAmVuIAEaBgiA_LyaBg'
+                                                    
                                                     if youtube_cookie:
+                                                        socs_cookie = 'SOCS=CAESEwgDEgk0ODE3Nzk3MjQaAmVuIAEaBgiA_LyaBg'
                                                         if 'SOCS=' not in youtube_cookie:
                                                             current_headers['Cookie'] = f"{socs_cookie}; {youtube_cookie}"
                                                         else:
                                                             current_headers['Cookie'] = youtube_cookie
-                                                    else:
-                                                        current_headers['Cookie'] = socs_cookie
 
                                                 native_success = check_native_download(
                                                     record_name, record_url, m3u8_url, save_file_path_native, current_headers
@@ -1720,20 +1721,21 @@ def start_record(url_data: tuple, count_variable: int = -1) -> None:
 
                                                 current_headers = headers
                                                 if platform == 'Youtube':
+                                                    # Use the same UA as spider.py uses for playlist fetching
                                                     current_headers = {
-                                                        'User-Agent': 'com.google.android.youtube/19.29.35 (Linux; U; Android 11; US;Pixel 5 Build/RQ3A.211001.001) gzip',
+                                                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/115.0',
                                                         'Accept': '*/*',
                                                         'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
+                                                        'Referer': 'https://www.youtube.com/',
                                                         'Connection': 'keep-alive',
                                                     }
-                                                    socs_cookie = 'SOCS=CAESEwgDEgk0ODE3Nzk3MjQaAmVuIAEaBgiA_LyaBg'
+                                                    
                                                     if youtube_cookie:
+                                                        socs_cookie = 'SOCS=CAESEwgDEgk0ODE3Nzk3MjQaAmVuIAEaBgiA_LyaBg'
                                                         if 'SOCS=' not in youtube_cookie:
                                                             current_headers['Cookie'] = f"{socs_cookie}; {youtube_cookie}"
                                                         else:
                                                             current_headers['Cookie'] = youtube_cookie
-                                                    else:
-                                                        current_headers['Cookie'] = socs_cookie
 
                                                 native_success = check_native_download(
                                                     record_name, record_url, m3u8_url, save_file_path, current_headers
