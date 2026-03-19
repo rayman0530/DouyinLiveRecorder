@@ -321,6 +321,8 @@ async def get_douyu_stream_url(json_data: dict, video_quality: str, cookies: str
     rtmp_live = flv_data['data'].get('rtmp_live')
     if rtmp_live:
         flv_url = f'{rtmp_url}/{rtmp_live}'
+        if "_h265" in rtmp_live:
+            flv_url += "&codec=h265"
         json_data |= {'quality': video_quality, 'flv_url': flv_url, 'record_url': flv_url}
     return json_data
 

@@ -601,7 +601,7 @@ async def get_douyu_stream_data(rid: str, rate: str = '-1', proxy_addr: Optional
 
     sign_str = await get_token_js(rid, did, proxy_addr=proxy_addr, headers=headers)
 
-    data = f"{sign_str}&cdn=&rate={rate}&hevc=0&fa=0&ive=0"
+    data = f"{sign_str}&cdn=&rate={rate}&hevc=1&fa=0&ive=0"
 
     app_api = f'https://www.douyu.com/lapi/live/getH5PlayV1/{rid}'
     headers['Content-Type'] = 'application/x-www-form-urlencoded'

@@ -584,7 +584,7 @@ def get_record_headers(platform, live_url):
 
 
 def is_flv_preferred_platform(link):
-    return any(i in link for i in ["douyin", "tiktok"])
+    return any(i in link for i in ["douyin", "tiktok", "douyu"])
 
 
 def select_source_url(link, stream_info):
@@ -1279,7 +1279,7 @@ def start_record(url_data: tuple, count_variable: int = -1) -> None:
                                     "-thread_queue_size", "1024",
                                     "-analyzeduration", analyzeduration,
                                     "-probesize", probesize,
-                                    "-fflags", "+discardcorrupt",
+                                    "-fflags", "+discardcorrupt+genpts+igndts",
                                     "-i", real_url,
                                     "-bufsize", bufsize,
                                     "-sn", "-dn",
@@ -1631,36 +1631,12 @@ def start_record(url_data: tuple, count_variable: int = -1) -> None:
 
                                         try:
                                             native_success = False
-                                            if platform in ['Youtube', 'CHZZK']:
-                                                # Use Native Downloader (No splitting support yet, forces single file)
+                                            if platform == 'CHZZK':
                                                 save_file_path_native = f"{full_path}/{anchor_name}_{title_in_name}{now}.ts"
                                                 m3u8_url = port_info.get("m3u8_url")
 
-                                                current_headers = headers
-                                                if platform == 'Youtube':
-                                                    current_headers = {
-                                                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
-                                                        'Accept': '*/*',
-                                                        'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
-                                                        'Origin': 'https://www.youtube.com',
-                                                        'Referer': 'https://www.youtube.com/',
-                                                        'Connection': 'keep-alive',
-                                                        'Sec-Fetch-Dest': 'empty',
-                                                        'Sec-Fetch-Mode': 'cors',
-                                                        'Sec-Fetch-Site': 'same-site',
-                                                    }
-                                                    
-                                                    socs_cookie = 'SOCS=CAESEwgDEgk0ODE3Nzk3MjQaAmVuIAEaBgiA_LyaBg'
-                                                    if youtube_cookie:
-                                                        if 'SOCS=' not in youtube_cookie:
-                                                            current_headers['Cookie'] = f"{socs_cookie}; {youtube_cookie}"
-                                                        else:
-                                                            current_headers['Cookie'] = youtube_cookie
-                                                    else:
-                                                        current_headers['Cookie'] = socs_cookie
-
                                                 native_success = check_native_download(
-                                                    record_name, record_url, m3u8_url, save_file_path_native, current_headers
+                                                    record_name, record_url, m3u8_url, save_file_path_native, headers
                                                 )
                                                 if native_success:
                                                     if converts_to_mp4:
@@ -1720,44 +1696,6 @@ def start_record(url_data: tuple, count_variable: int = -1) -> None:
                                         save_file_path = full_path + '/' + filename
 
                                         try:
-                                            native_success = False
-                                            if platform in ['Youtube', 'CHZZK']:
-                                                m3u8_url = port_info.get("m3u8_url")
-
-                                                current_headers = headers
-                                                if platform == 'Youtube':
-                                                    current_headers = {
-                                                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
-                                                        'Accept': '*/*',
-                                                        'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
-                                                        'Origin': 'https://www.youtube.com',
-                                                        'Referer': 'https://www.youtube.com/',
-                                                        'Connection': 'keep-alive',
-                                                        'Sec-Fetch-Dest': 'empty',
-                                                        'Sec-Fetch-Mode': 'cors',
-                                                        'Sec-Fetch-Site': 'same-site',
-                                                    }
-                                                    
-                                                    socs_cookie = 'SOCS=CAESEwgDEgk0ODE3Nzk3MjQaAmVuIAEaBgiA_LyaBg'
-                                                    if youtube_cookie:
-                                                        if 'SOCS=' not in youtube_cookie:
-                                                            current_headers['Cookie'] = f"{socs_cookie}; {youtube_cookie}"
-                                                        else:
-                                                            current_headers['Cookie'] = youtube_cookie
-                                                    else:
-                                                        current_headers['Cookie'] = socs_cookie
-
-                                                native_success = check_native_download(
-                                                    record_name, record_url, m3u8_url, save_file_path, current_headers
-                                                )
-                                                if native_success:
-                                                    threading.Thread(
-                                                        target=converts_mp4, args=(save_file_path, delete_origin_file)
-                                                    ).start()
-                                                    return
-                                                else:
-                                                    raise Exception("Native download failed")
-
                                             command = [
                                                 "-c:v", "copy",
                                                 "-c:a", "copy",
