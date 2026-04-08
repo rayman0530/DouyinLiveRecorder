@@ -99,12 +99,18 @@ signal.signal(signal.SIGINT, signal_handler)
 def display_info() -> None:
     global start_display_time
     time.sleep(5)
-    while True:
+    while not exit_recording:
         try:
+            if exit_recording:
+                break
             sys.stdout.flush()
             time.sleep(5)
+            if exit_recording:
+                break
             if Path(sys.executable).name != 'pythonw.exe':
                 os.system(clear_command)
+            if exit_recording:
+                break
             print(f"\r共监测{monitoring}个直播中", end=" | ")
             print(f"同一时间访问网络的线程数: {max_request}", end=" | ")
             print(f"是否开启代理录制: {'是' if use_proxy else '否'}", end=" | ")
@@ -308,7 +314,7 @@ def adjust_max_request() -> None:
     global max_request, error_count, pre_max_request, error_window
     preset = max_request
 
-    while True:
+    while not exit_recording:
         time.sleep(5)
         with max_request_lock:
             if error_window:
@@ -434,13 +440,13 @@ def check_subprocess(record_name: str, record_url: str, ffmpeg_command: list, sa
     )
 
     def log_monitor():
-        while True:
+        while not exit_recording:
             line = process.stdout.readline()
             if not line:
                 break
             try:
                 decoded_line = line.decode('utf-8', errors='ignore').strip()
-                if decoded_line:
+                if decoded_line and not exit_recording:
                     print(f"[{record_name}] {decoded_line}")
             except Exception:
                 pass
@@ -470,11 +476,14 @@ def check_subprocess(record_name: str, record_url: str, ffmpeg_command: list, sa
             else:
                 process.send_signal(signal.SIGINT)
             process.wait()
+            log_thread.join(timeout=2)
             return True
         time.sleep(1)
 
     return_code = process.returncode
     stop_time = time.strftime('%Y-%m-%d %H:%M:%S')
+    process.wait()
+    log_thread.join(timeout=2)
     if return_code == 0:
         if converts_to_mp4 and save_type == 'TS':
             if split_video_by_time:
@@ -601,7 +610,7 @@ def select_source_url(link, stream_info):
 def start_record(url_data: tuple, count_variable: int = -1) -> None:
     global error_count, weverse_cookie, weverse_refresh_token
 
-    while True:
+    while not exit_recording:
         try:
             record_finished = False
             run_once = False
@@ -630,7 +639,7 @@ def start_record(url_data: tuple, count_variable: int = -1) -> None:
 
             # print(f'\r代理地址:{proxy_address}')
             # print(f'\r全局代理:{global_proxy}')
-            while True:
+            while not exit_recording:
                 try:
                     port_info = []
                     if record_url.find("douyin.com/") > -1:
@@ -1168,7 +1177,8 @@ def start_record(url_data: tuple, count_variable: int = -1) -> None:
 
                         push_at = datetime.datetime.today().strftime('%Y-%m-%d %H:%M:%S')
                         if port_info['is_live'] is False:
-                            print(f"\r{record_name} 等待直播... ")
+                            if not exit_recording:
+                                print(f"\r{record_name} 等待直播... ")
 
                             if start_pushed:
                                 if over_show_push:
@@ -1795,7 +1805,7 @@ def backup_file_start() -> None:
     config_md5 = ''
     url_config_md5 = ''
 
-    while True:
+    while not exit_recording:
         try:
             if os.path.exists(config_file):
                 new_config_md5 = utils.check_md5(config_file)
@@ -1846,7 +1856,7 @@ if not check_ffmpeg_existence():
     logger.error("缺少ffmpeg无法进行录制，程序退出")
     sys.exit(1)
 os.makedirs(os.path.dirname(config_file), exist_ok=True)
-t3 = threading.Thread(target=backup_file_start, args=(), daemon=True)
+t3 = threading.Thread(target=backup_file_start, args=(), daemon=False)
 t3.start()
 utils.remove_duplicate_lines(url_config_file)
 
@@ -2267,7 +2277,7 @@ while not exit_recording:
                     monitoring += 1
                     args = [url_tuple, monitoring]
                     create_var[f'thread_{monitoring}'] = threading.Thread(target=start_record, args=args)
-                    create_var[f'thread_{monitoring}'].daemon = True
+                    create_var[f'thread_{monitoring}'].daemon = False
                     create_var[f'thread_{monitoring}'].start()
                     running_list.append(url_tuple[1])
                     time.sleep(local_delay_default)
@@ -2278,9 +2288,9 @@ while not exit_recording:
         logger.error(f"错误信息: {err} 发生错误的行数: {err.__traceback__.tb_lineno}")
 
     if first_run:
-        t = threading.Thread(target=display_info, args=(), daemon=True)
+        t = threading.Thread(target=display_info, args=(), daemon=False)
         t.start()
-        t2 = threading.Thread(target=adjust_max_request, args=(), daemon=True)
+        t2 = threading.Thread(target=adjust_max_request, args=(), daemon=False)
         t2.start()
         first_run = False
 
