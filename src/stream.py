@@ -412,7 +412,8 @@ async def get_netease_stream_url(json_data: dict, video_quality: str) -> dict:
 
 async def get_stream_url(json_data: dict, video_quality: str, url_type: str = 'm3u8', spec: bool = False,
                          hls_extra_key: str | int = None, flv_extra_key: str | int = None) -> dict:
-    if not json_data['is_live']:
+    if not json_data.get('is_live') or not json_data.get('play_url_list'):
+        json_data['is_live'] = False
         return json_data
 
     play_url_list = json_data['play_url_list']

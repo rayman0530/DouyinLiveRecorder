@@ -1,4 +1,4 @@
-﻿# -*- encoding: utf-8 -*-
+# -*- encoding: utf-8 -*-
 
 """
 Author: Hmily
@@ -955,9 +955,12 @@ async def get_sooplive_cdn_url(broad_no: str, proxy_addr: OptionalStr = None, co
         'time': '8361.086329376785',
     }
 
-    url2 = 'http://livestream-manager.sooplive.co.kr/broad_stream_assign.html?' + urllib.parse.urlencode(params)
+    url2 = 'https://livestream-manager.sooplive.com/broad_stream_assign.html?' + urllib.parse.urlencode(params)
     json_str = await async_req(url=url2, proxy_addr=proxy_addr, headers=headers, abroad=True)
-    json_data = json.loads(json_str)
+    try:
+        json_data = json.loads(json_str)
+    except Exception as e:
+        raise RuntimeError(f"获取SOOP CDN播放地址失败，接口未返回有效JSON内容 (响应内容: {str(json_str)[:150]}): {e}")
 
     return json_data
 
@@ -974,7 +977,8 @@ async def get_sooplive_tk(url: str, rtype: str, proxy_addr: OptionalStr = None, 
     if cookies:
         headers['Cookie'] = cookies
 
-    split_url = url.split('/')
+    clean_url = url.split('?')[0].rstrip('/')
+    split_url = clean_url.split('/')
     bj_id = split_url[3] if len(split_url) < 6 else split_url[5]
     room_password = get_params(url, "pwd")
     if not room_password:
@@ -994,7 +998,10 @@ async def get_sooplive_tk(url: str, rtype: str, proxy_addr: OptionalStr = None, 
 
     url2 = f'https://live.sooplive.co.kr/afreeca/player_live_api.php?bjid={bj_id}'
     json_str = await async_req(url=url2, proxy_addr=proxy_addr, headers=headers, data=data, abroad=True)
-    json_data = json.loads(json_str)
+    try:
+        json_data = json.loads(json_str)
+    except Exception as e:
+        raise RuntimeError(f"获取SOOP Token ({rtype}) 失败，返回非JSON内容 (响应内容: {str(json_str)[:150]}): {e}")
 
     if rtype == 'aid':
         token = json_data["CHANNEL"]["AID"]
@@ -1083,6 +1090,7 @@ async def get_sooplive_stream_data(
     headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/119.0',
         'Accept-Language': 'zh-CN,zh;q=0.8,zh-TW;q=0.7,zh-HK;q=0.5,en-US;q=0.3,en;q=0.2',
+        'Origin': 'https://m.sooplive.co.kr',
         'Referer': 'https://m.sooplive.co.kr/',
         'Content-Type': 'application/x-www-form-urlencoded',
     }
@@ -1092,7 +1100,8 @@ async def get_sooplive_stream_data(
     if "sooplive.com" in url:
         return await _fetch_web_stream_data_global(url, proxy_addr, cookies)
 
-    split_url = url.split('/')
+    clean_url = url.split('?')[0].rstrip('/')
+    split_url = clean_url.split('/')
     bj_id = split_url[3] if len(split_url) < 6 else split_url[5]
 
     data = {
@@ -1104,19 +1113,23 @@ async def get_sooplive_stream_data(
         'mode': 'live',
     }
 
-    url2 = 'http://api.m.sooplive.co.kr/broad/a/watch'
+    url2 = 'https://api.m.sooplive.co.kr/broad/a/watch'
 
     json_str = await async_req(url=url2, proxy_addr=proxy_addr, headers=headers, data=data, abroad=True)
-    json_data = json.loads(json_str)
+    try:
+        json_data = json.loads(json_str)
+        data_dict = json_data.get('data', {})
+    except Exception:
+        return {"anchor_name": bj_id, "is_live": False}
 
-    if 'user_nick' in json_data['data']:
-        anchor_name = json_data['data']['user_nick']
-        if "bj_id" in json_data['data']:
-            anchor_name = f"{anchor_name}-{json_data['data']['bj_id']}"
+    if 'user_nick' in data_dict:
+        anchor_name = data_dict['user_nick']
+        if "bj_id" in data_dict:
+            anchor_name = f"{anchor_name}-{data_dict['bj_id']}"
     else:
-        anchor_name = ''
+        anchor_name = bj_id
 
-    result = {"anchor_name": anchor_name or '' ,"is_live": False}
+    result = {"anchor_name": anchor_name, "is_live": False}
 
     async def get_url_list(m3u8: str) -> List[str]:
         resp = await async_req(url=m3u8, proxy_addr=proxy_addr, headers=headers, abroad=True)
@@ -1141,13 +1154,20 @@ async def get_sooplive_stream_data(
         aid_token = await get_sooplive_tk(url, rtype='aid', proxy_addr=proxy_addr, cookies=cookie)
         _anchor_name, _broad_no = await get_sooplive_tk(url, rtype='info', proxy_addr=proxy_addr, cookies=cookie)
         _view_url_data = await get_sooplive_cdn_url(_broad_no, proxy_addr=proxy_addr)
-        _view_url = _view_url_data['view_url']
-        _m3u8_url = _view_url + '?aid=' + aid_token
+        _view_url = _view_url_data.get('view_url')
+        if not _view_url:
+            _result['is_live'] = False
+            return _result
+        _m3u8_url = _view_url + '?aid=' + str(aid_token)
+        _play_urls = await get_url_list(_m3u8_url)
+        if not _play_urls:
+            _result['is_live'] = False
+            return _result
         _result |= {
             "anchor_name": _anchor_name,
             "is_live": True,
             "m3u8_url": _m3u8_url,
-            'play_url_list': await get_url_list(_m3u8_url),
+            'play_url_list': _play_urls,
             'new_cookies': cookie
         }
         return _result
@@ -1175,16 +1195,20 @@ async def get_sooplive_stream_data(
             print("error message：Please check if the input sooplive live room address "
                   "is correct.")
             return result
-    if json_data['result'] == 1 and anchor_name:
+    if json_data.get('result') == 1 and anchor_name:
         try:
             return await fetch_data(cookies, result)
         except Exception:
-            broad_no = json_data['data']['broad_no']
-            hls_authentication_key = json_data['data']['hls_authentication_key']
-            view_url_data = await get_sooplive_cdn_url(broad_no, proxy_addr=proxy_addr)
-            view_url = view_url_data['view_url']
-            m3u8_url = view_url + '?aid=' + hls_authentication_key
-            result |= {'is_live': True, 'm3u8_url': m3u8_url, 'play_url_list': await get_url_list(m3u8_url)}
+            broad_no = json_data.get('data', {}).get('broad_no')
+            hls_authentication_key = json_data.get('data', {}).get('hls_authentication_key')
+            if broad_no and hls_authentication_key:
+                view_url_data = await get_sooplive_cdn_url(broad_no, proxy_addr=proxy_addr)
+                view_url = view_url_data.get('view_url')
+                if view_url:
+                    m3u8_url = view_url + '?aid=' + str(hls_authentication_key)
+                    play_urls = await get_url_list(m3u8_url)
+                    if play_urls:
+                        result |= {'is_live': True, 'm3u8_url': m3u8_url, 'play_url_list': play_urls}
     result['new_cookies'] = None
     return result
 
@@ -1549,8 +1573,8 @@ def get_looklive_secret_data(text) -> tuple:
               '5d3e82047b97ddef52741d546b8e289dc6935b3ece0462db0a22b8e7'
     nonce = b'0CoJUm6Qyw8W8jud'
     public_key = '010001'
-    from Crypto.Cipher import AES
-    from Crypto.Util.Padding import pad
+    from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+    from cryptography.hazmat.primitives import padding
     import base64
     import binascii
     import secrets
@@ -1566,9 +1590,11 @@ def get_looklive_secret_data(text) -> tuple:
             _sec_key = _sec_key.encode('utf-8')
         _sec_key = _sec_key[:16]  # 16 (AES-128), 24 (AES-192), or 32 (AES-256) bytes
         iv = bytes('0102030405060708', 'utf-8')
-        encryptor = AES.new(_sec_key, AES.MODE_CBC, iv)
-        padded_text = pad(_text, AES.block_size)
-        ciphertext = encryptor.encrypt(padded_text)
+        padder = padding.PKCS7(128).padder()
+        padded_text = padder.update(_text) + padder.finalize()
+        cipher = Cipher(algorithms.AES(_sec_key), modes.CBC(iv))
+        encryptor = cipher.encryptor()
+        ciphertext = encryptor.update(padded_text) + encryptor.finalize()
         encoded_ciphertext = base64.b64encode(ciphertext)
         return encoded_ciphertext
 

@@ -27,11 +27,11 @@ async def async_req(
     try:
         proxy_addr = utils.handle_proxy_addr(proxy_addr)
         if data or json_data:
-            async with httpx.AsyncClient(proxy=proxy_addr, timeout=timeout, verify=verify, http2=http2) as client:
+            async with httpx.AsyncClient(proxy=proxy_addr, timeout=timeout, verify=verify, http2=http2, follow_redirects=True) as client:
                 response = await client.post(url, data=data, json=json_data, headers=headers)
         else:
-            async with httpx.AsyncClient(proxy=proxy_addr, timeout=timeout, verify=verify, http2=http2) as client:
-                response = await client.get(url, headers=headers, follow_redirects=True)
+            async with httpx.AsyncClient(proxy=proxy_addr, timeout=timeout, verify=verify, http2=http2, follow_redirects=True) as client:
+                response = await client.get(url, headers=headers)
 
         if redirect_url:
             return str(response.url)
