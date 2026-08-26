@@ -3180,11 +3180,11 @@ async def get_taobao_stream_url(url: str, proxy_addr: OptionalStr = None, cookie
     if '_m_h5_tk' not in headers['Cookie']:
         print('Error: Cookies is empty! please input correct cookies')
 
-    live_id = get_params(url, 'id')
+    live_id = get_params(url, 'id') or get_params(url, 'liveId')
     if not live_id:
         html_str = await async_req(url, proxy_addr=proxy_addr, headers=headers)
         redirect_url = re.findall("var url = '(.*?)';", html_str)[0]
-        live_id = get_params(redirect_url, 'id')
+        live_id = get_params(redirect_url, 'id') or get_params(redirect_url, 'liveId')
 
     params = {
         'jsv': '2.7.0',
