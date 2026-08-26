@@ -72,7 +72,7 @@ config_file = f'{script_path}/config/config.ini'
 url_config_file = f'{script_path}/config/URL_config.ini'
 backup_dir = f'{script_path}/backup_config'
 text_encoding = 'utf-8-sig'
-rstr = r"[\/\\\:\*\？?\"\<\>\|&#.。,， ~！· ]"
+rstr = r"[\/\\\:\*\？?\"\<\>\|&#.。,， ~！· \x00-\x1f]"
 default_path = f'{script_path}/downloads'
 os.makedirs(default_path, exist_ok=True)
 file_update_lock = threading.Lock()
@@ -1155,7 +1155,7 @@ def start_record(url_data: tuple, count_variable: int = -1) -> None:
                             error_count += 1
                             error_window.append(1)
                     else:
-                        anchor_name = clean_name(anchor_name)
+                        anchor_name = clean_name(anchor_name)[:50]
                         show_anchor_name = anchor_name
                         if platform:
                             show_anchor_name = f'[{platform}] {anchor_name}'
@@ -1225,7 +1225,7 @@ def start_record(url_data: tuple, count_variable: int = -1) -> None:
                                 live_title = port_info.get('title')
                                 title_in_name = ''
                                 if live_title:
-                                    live_title = clean_name(live_title)
+                                    live_title = clean_name(live_title)[:50]
                                     title_in_name = live_title + '_' if filename_by_title else ''
 
                                 try:
@@ -1663,7 +1663,6 @@ def start_record(url_data: tuple, count_variable: int = -1) -> None:
                                                 "-c:v", "copy",
                                                 "-c:a", "copy",
                                                 "-map", "0",
-                                                "-bsf:v", "h264_mp4toannexb",
                                                 "-f", "segment",
                                                 "-segment_time", split_time,
                                                 "-segment_format", 'mpegts',
