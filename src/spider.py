@@ -3627,8 +3627,8 @@ async def get_weverse_stream_data(url: str, proxy_addr: OptionalStr = None, cook
 
     headers = {
         "Accept": "application/json",
-        "Origin": "https://weverse.io",
-        "Referer": "https://weverse.io/",
+        "Origin": "https://www.weverse.io",
+        "Referer": "https://www.weverse.io/",
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
     }
 

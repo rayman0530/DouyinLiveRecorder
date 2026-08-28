@@ -586,7 +586,7 @@ def get_record_headers(platform, live_url):
         '浪Live': 'referer:https://www.lang.live',
         'shopee': f'origin:{live_domain}',
         'Blued直播': 'referer:https://app.blued.cn',
-        'Weverse': 'origin:https://weverse.io',
+        'Weverse': 'origin:https://www.weverse.io',
         'B站直播': 'referer:https://live.bilibili.com/'
     }
     return record_headers.get(platform)

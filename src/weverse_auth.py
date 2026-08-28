@@ -11,8 +11,8 @@ def refresh_weverse_token(refresh_token):
     headers = {
         "Content-Type": "application/json",
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Origin": "https://weverse.io",
-        "Referer": "https://weverse.io/",
+        "Origin": "https://www.weverse.io",
+        "Referer": "https://www.weverse.io/",
         "X-ACC-SERVICE-ID": "weverse",
         "X-ACC-APP-SECRET": "5419526f1c624b38b10787e5c10b2a7a",
         "X-ACC-TRACE-ID": str(uuid.uuid4())
