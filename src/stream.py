@@ -479,3 +479,19 @@ async def get_weverse_stream_url(json_data: dict) -> dict:
         "m3u8_url": json_data.get('m3u8_url'),
         "quality": "OD"
     }
+
+
+@trace_error_decorator
+async def get_berriz_stream_url(json_data: dict) -> dict:
+    if not json_data.get('is_live', False):
+        return json_data
+
+    m3u8_url = json_data.get('m3u8_url')
+    return {
+        "anchor_name": json_data['anchor_name'],
+        "is_live": True,
+        "title": json_data.get('title'),
+        "record_url": m3u8_url,
+        "m3u8_url": m3u8_url,
+        "quality": "OD"
+    }

@@ -3662,7 +3662,11 @@ async def get_weverse_stream_data(url: str, proxy_addr: OptionalStr = None, cook
     if "weverse.io/" in url:
         parts = url.split("weverse.io/")
         if len(parts) > 1:
-            channel_name = parts[1].split("/")[0]
+            channel_name = parts[1].split("/")[0].strip()
+
+    if channel_name:
+        if channel_name.startswith("www."):
+            channel_name = channel_name[4:]
 
     if not channel_name:
         return {"anchor_name": channel_name, "is_live": False}
@@ -3685,9 +3689,13 @@ async def get_weverse_stream_data(url: str, proxy_addr: OptionalStr = None, cook
 
             try:
                 data = json.loads(resp_str)
-                if data.get("errorCode") in ["wam_401", "common_401", "common_403"] or data.get("status") in [401, 403]:
+                if data.get("errorCode") in ["wam_401", "common_401", "common_403", "account_401"] or data.get("status") in [401, 403]:
                     if refresh_token and attempt == 0:
-                        new_a, new_r = refresh_weverse_token(refresh_token)
+                        new_a, new_r = refresh_weverse_token(
+                            refresh_token=refresh_token,
+                            proxy_addr=proxy_addr,
+                            current_access_token=current_token
+                        )
                         if new_a:
                             current_token = new_a
                             refresh_token = new_r
@@ -3749,6 +3757,111 @@ async def get_weverse_stream_data(url: str, proxy_addr: OptionalStr = None, cook
                 "record_url": m3u8_url,
                 "new_tokens": new_tokens
             }
+    elif play_info and ("errorCode" in play_info or "status" in play_info):
+        print(f"[{channel_name}] Weverse直播流获取受限 (可能为官方付费会员或DM专享直播): {play_info.get('message', play_info)}")
 
     return {"anchor_name": channel_name, "is_live": False, "new_tokens": new_tokens}
+
+
+async def get_berriz_stream_data(url: str, proxy_addr: OptionalStr = None, cookies: OptionalStr = None) -> dict:
+    headers = {
+        "Accept": "application/json",
+        "Origin": "https://berriz.in",
+        "Referer": "https://berriz.in/",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "X-Berriz-Epic": "e8faf56c-575a-42d2-933d-7b2e279ad827",
+    }
+    if cookies:
+        headers["Cookie"] = cookies
+
+    clean_url = url.split("?")[0].split("#")[0].strip().rstrip("/")
+    community_key = None
+    direct_live_id = None
+
+    if "berriz.in" in clean_url:
+        parts = clean_url.split("berriz.in")[-1].strip("/").split("/")
+        if parts and parts[0] in ("en", "ko", "ja", "zh-Hans"):
+            parts.pop(0)
+        if parts and parts[0]:
+            community_key = parts[0]
+            if len(parts) >= 3 and parts[1] == "live":
+                direct_live_id = parts[2]
+            elif len(parts) >= 4 and parts[1] == "live" and parts[2] == "replay":
+                direct_live_id = parts[3]
+    else:
+        community_key = clean_url
+
+    if not community_key:
+        return {"anchor_name": None, "is_live": False}
+
+    api_base = "https://svc-api.berriz.in"
+
+    comm_url = f"{api_base}/service/v1/community/id/{community_key}"
+    resp = await async_req(comm_url, proxy_addr=proxy_addr, headers=headers)
+    try:
+        data = json.loads(resp)
+        if data.get("code") == "0000" and "data" in data:
+            comm_data = data["data"]
+            community_id = comm_data.get("communityId")
+            community_name = comm_data.get("communityName", community_key)
+        else:
+            return {"anchor_name": community_key, "is_live": False}
+    except Exception:
+        return {"anchor_name": community_key, "is_live": False}
+
+    live_id = direct_live_id
+    title = community_name
+
+    if not live_id:
+        onair_url = f"{api_base}/service/v1/community/{community_id}/medias/live/on-air"
+        resp = await async_req(onair_url, proxy_addr=proxy_addr, headers=headers)
+        try:
+            onair_data = json.loads(resp)
+            contents = onair_data.get("data", {}).get("contents", [])
+            if not contents:
+                return {"anchor_name": community_name, "is_live": False}
+
+            live_item = contents[0]
+            media = live_item.get("media", {})
+            live_id = media.get("mediaId")
+            title = media.get("title") or community_name
+            artists = live_item.get("communityArtists", [])
+            if artists and artists[0].get("name"):
+                community_name = artists[0]["name"]
+        except Exception:
+            return {"anchor_name": community_name, "is_live": False}
+
+    if not live_id:
+        return {"anchor_name": community_name, "is_live": False}
+
+    playback_url_api = f"{api_base}/service/v1/medias/live/{live_id}/playback_info"
+    resp = await async_req(playback_url_api, proxy_addr=proxy_addr, headers=headers)
+    try:
+        playback_data = json.loads(resp)
+        if playback_data.get("code") == "0000" and "data" in playback_data:
+            m3u8_url = playback_data["data"].get("playbackUrl")
+            if m3u8_url:
+                return {
+                    "anchor_name": community_name,
+                    "is_live": True,
+                    "title": title,
+                    "m3u8_url": m3u8_url,
+                    "record_url": m3u8_url,
+                    "quality": "OD"
+                }
+        elif playback_data.get("code") == "FS_ER4020":
+            logger.warning(f"[{url}] Berriz 直播正在进行（{title}），但播放流需要登录凭据，请在 config.ini 中配置 berriz_cookie")
+            return {
+                "anchor_name": community_name,
+                "is_live": True,
+                "title": title,
+                "m3u8_url": None,
+                "record_url": f"https://berriz.in/{community_key}/live/{live_id}",
+                "quality": "OD"
+            }
+    except Exception:
+        pass
+
+    return {"anchor_name": community_name, "is_live": False}
+
 

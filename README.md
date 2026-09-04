@@ -65,6 +65,8 @@
 - [x] 连接直播
 - [x] 来秀直播
 - [x] Picarto
+- [x] Weverse
+- [x] Berriz
 - [ ] 更多平台正在更新中
 
 </div>

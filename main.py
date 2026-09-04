@@ -42,7 +42,7 @@ version = "v4.0.7"
 platforms = ("\n国内站点：抖音|快手|虎牙|斗鱼|YY|B站|小红书|bigo|blued|网易CC|千度热播|猫耳FM|Look|TwitCasting|百度|微博|"
              "酷狗|花椒|流星|Acfun|畅聊|映客|音播|知乎|嗨秀|VV星球|17Live|浪Live|漂漂|六间房|乐嗨|花猫|淘宝|京东|咪咕|连接|来秀"
              "\n海外站点：TikTok|SOOP|PandaTV|WinkTV|FlexTV|PopkonTV|TwitchTV|LiveMe|ShowRoom|CHZZK|Shopee|"
-             "Youtube|Faceit|Picarto|Instagram|Weverse")
+             "Youtube|Faceit|Picarto|Instagram|Weverse|Berriz")
 
 recording = set()
 error_count = 0
@@ -66,6 +66,7 @@ start_display_time = datetime.datetime.now()
 global_proxy = False
 weverse_cookie = ''
 weverse_refresh_token = ''
+berriz_cookie = ''
 recording_time_list = {}
 script_path = os.path.split(os.path.realpath(sys.argv[0]))[0]
 config_file = f'{script_path}/config/config.ini'
@@ -586,7 +587,8 @@ def get_record_headers(platform, live_url):
         '浪Live': 'referer:https://www.lang.live',
         'shopee': f'origin:{live_domain}',
         'Blued直播': 'referer:https://app.blued.cn',
-        'Weverse': 'origin:https://www.weverse.io',
+        'Weverse': 'origin:https://www.weverse.io\r\nreferer:https://www.weverse.io/',
+        'Berriz': 'origin:https://berriz.in\r\nreferer:https://berriz.in/',
         'B站直播': 'referer:https://live.bilibili.com/'
     }
     return record_headers.get(platform)
@@ -608,7 +610,7 @@ def select_source_url(link, stream_info):
 
 
 def start_record(url_data: tuple, count_variable: int = -1) -> None:
-    global error_count, weverse_cookie, weverse_refresh_token
+    global error_count, weverse_cookie, weverse_refresh_token, berriz_cookie
 
     while not exit_recording:
         try:
@@ -771,14 +773,25 @@ def start_record(url_data: tuple, count_variable: int = -1) -> None:
                                 if json_data and json_data.get('new_tokens'):
                                     new_access = json_data['new_tokens']['access']
                                     new_refresh = json_data['new_tokens']['refresh']
-                                    utils.update_config(config_file, 'Cookie', 'weverse_cookie', new_access)
-                                    utils.update_config(config_file, 'Cookie', 'weverse_refresh_token', new_refresh)
-                                    weverse_cookie = new_access
-                                    weverse_refresh_token = new_refresh
+                                    if new_access and new_access != weverse_cookie:
+                                        utils.update_config(config_file, 'Cookie', 'weverse_cookie', new_access)
+                                        utils.update_config(config_file, 'Cookie', 'weverse_refresh_token', new_refresh)
+                                        weverse_cookie = new_access
+                                        weverse_refresh_token = new_refresh
 
                                 port_info = asyncio.run(stream.get_weverse_stream_url(json_data))
                             else:
                                 logger.error(f"[{record_url}] 错误信息: 网络异常，请检查本网络是否能正常访问Weverse平台")
+
+                    elif record_url.find("berriz.in") > -1:
+                        platform = 'Berriz'
+                        with semaphore:
+                            json_data = asyncio.run(spider.get_berriz_stream_data(
+                                url=record_url,
+                                proxy_addr=proxy_address,
+                                cookies=berriz_cookie
+                            ))
+                            port_info = asyncio.run(stream.get_berriz_stream_url(json_data))
 
                     elif record_url.find("cc.163.com/") > -1:
                         platform = '网易CC直播'
@@ -1307,6 +1320,13 @@ def start_record(url_data: tuple, count_variable: int = -1) -> None:
                                         headers += f"\r\nCookie: {weverse_cookie}"
                                     else:
                                         headers = f"Cookie: {weverse_cookie}"
+                                elif platform == 'Berriz':
+                                    if headers:
+                                        if berriz_cookie:
+                                            headers += f"\r\nCookie: {berriz_cookie}"
+                                    else:
+                                        if berriz_cookie:
+                                            headers = f"Cookie: {berriz_cookie}"
 
                                 if headers:
                                     ffmpeg_command.insert(11, "-headers")
@@ -1321,7 +1341,7 @@ def start_record(url_data: tuple, count_variable: int = -1) -> None:
                                 recording_time_list[record_name] = [start_record_time, record_quality_zh]
                                 rec_info = f"\r{show_anchor_name} 准备开始录制视频: {full_path}"
                                 if show_url:
-                                    re_plat = ('WinkTV', 'PandaTV', 'ShowRoom', 'CHZZK', 'Youtube')
+                                    re_plat = ('WinkTV', 'PandaTV', 'ShowRoom', 'CHZZK', 'Youtube', 'Berriz')
                                     if platform in re_plat:
                                         logger.info(
                                             f"{platform} | {anchor_name} | 直播源地址: {port_info.get('m3u8_url')}")
@@ -1961,7 +1981,7 @@ while not exit_recording:
     custom_script = read_config_value(config, '录制设置', '自定义脚本执行命令', "") if is_run_script else None
     enable_proxy_platform = read_config_value(
         config, '录制设置', '使用代理录制的平台(逗号分隔)',
-        'tiktok, soop, pandalive, winktv, flextv, popkontv, twitch, liveme, showroom, chzzk, shopee, shp, youtu, faceit, weverse'
+        'tiktok, soop, pandalive, winktv, flextv, popkontv, twitch, liveme, showroom, chzzk, shopee, shp, youtu, faceit, weverse, berriz'
     )
     enable_proxy_platform_list = enable_proxy_platform.replace('，', ',').split(',') if enable_proxy_platform else None
     extra_enable_proxy = read_config_value(config, '录制设置', '额外使用代理录制的平台(逗号分隔)', '')
@@ -2059,6 +2079,7 @@ while not exit_recording:
     instagram_cookie = read_config_value(config, 'Cookie', 'instagram_cookie', '')
     weverse_cookie = read_config_value(config, 'Cookie', 'weverse_cookie', '')
     weverse_refresh_token = read_config_value(config, 'Cookie', 'weverse_refresh_token', '')
+    berriz_cookie = read_config_value(config, 'Cookie', 'berriz_cookie', '')
 
     video_save_type_list = ("FLV", "MKV", "TS", "MP4", "MP3音频", "M4A音频", "MP3", "M4A")
     if video_save_type and video_save_type.upper() in video_save_type_list:
@@ -2207,7 +2228,9 @@ while not exit_recording:
                     'youtu.be',
                     'www.faceit.com',
                     'weverse.io',
-                    'www.weverse.io'
+                    'www.weverse.io',
+                    'berriz.in',
+                    'www.berriz.in'
                 ]
 
                 platform_host.extend(overseas_platform_host)
@@ -2224,7 +2247,9 @@ while not exit_recording:
                     "m.6.cn",
                     'www.lehaitv.com',
                     'weverse.io',
-                    'www.weverse.io'
+                    'www.weverse.io',
+                    'berriz.in',
+                    'www.berriz.in'
                 )
 
                 if 'live.shopee.' in url_host or '.shp.ee' in url_host:
