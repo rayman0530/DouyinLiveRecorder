@@ -467,17 +467,27 @@ async def get_instagram_stream_url(json_data: dict) -> dict:
 
 
 @trace_error_decorator
-async def get_weverse_stream_url(json_data: dict) -> dict:
+async def get_weverse_stream_url(json_data: dict, video_quality: str = "OD") -> dict:
     if not json_data.get('is_live', False):
         return json_data
+
+    play_url_list = json_data.get('play_url_list')
+    if play_url_list:
+        while len(play_url_list) < 5:
+            play_url_list.append(play_url_list[-1])
+        video_quality_str, selected_quality = get_quality_index(video_quality)
+        selected_url = play_url_list[selected_quality]
+    else:
+        video_quality_str = "OD"
+        selected_url = json_data.get('record_url') or json_data.get('m3u8_url')
 
     return {
         "anchor_name": json_data['anchor_name'],
         "is_live": True,
         "title": json_data.get('title'),
-        "record_url": json_data.get('record_url'),
+        "record_url": selected_url,
         "m3u8_url": json_data.get('m3u8_url'),
-        "quality": "OD"
+        "quality": video_quality_str
     }
 
 

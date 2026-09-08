@@ -3749,12 +3749,48 @@ async def get_weverse_stream_data(url: str, proxy_addr: OptionalStr = None, cook
                 break
 
         if m3u8_url:
+            play_url_list = []
+            try:
+                m3u8_resp = await async_req(url=m3u8_url, proxy_addr=proxy_addr, headers=headers, abroad=True)
+                if m3u8_resp and "#EXTM3U" in m3u8_resp:
+                    lines = [line.strip() for line in m3u8_resp.split('\n') if line.strip()]
+                    bandwidth_url_pairs = []
+                    i = 0
+                    while i < len(lines):
+                        line = lines[i]
+                        if line.startswith("#EXT-X-STREAM-INF:"):
+                            bw_match = re.search(r"BANDWIDTH=(\d+)", line)
+                            bandwidth = int(bw_match.group(1)) if bw_match else 0
+                            j = i + 1
+                            while j < len(lines) and lines[j].startswith("#"):
+                                j += 1
+                            if j < len(lines):
+                                stream_path = lines[j]
+                                if not stream_path.startswith(('http://', 'https://')):
+                                    full_stream_url = urllib.parse.urljoin(m3u8_url, stream_path)
+                                else:
+                                    full_stream_url = stream_path
+                                if "?" in m3u8_url and "?" not in stream_path:
+                                    parent_query = m3u8_url.split("?", 1)[1]
+                                    full_stream_url = f"{full_stream_url}?{parent_query}"
+                                bandwidth_url_pairs.append((bandwidth, full_stream_url))
+                                i = j
+                        i += 1
+
+                    if bandwidth_url_pairs:
+                        bandwidth_url_pairs.sort(key=lambda x: x[0], reverse=True)
+                        play_url_list = [pair[1] for pair in bandwidth_url_pairs]
+            except Exception as e:
+                logger.debug(f"[Weverse] Failed to parse master playlist: {e}")
+
+            record_url = play_url_list[0] if play_url_list else m3u8_url
             return {
                 "anchor_name": channel_name,
                 "is_live": True,
                 "title": title,
                 "m3u8_url": m3u8_url,
-                "record_url": m3u8_url,
+                "record_url": record_url,
+                "play_url_list": play_url_list,
                 "new_tokens": new_tokens
             }
     elif play_info and ("errorCode" in play_info or "status" in play_info):

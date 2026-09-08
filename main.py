@@ -779,7 +779,7 @@ def start_record(url_data: tuple, count_variable: int = -1) -> None:
                                         weverse_cookie = new_access
                                         weverse_refresh_token = new_refresh
 
-                                port_info = asyncio.run(stream.get_weverse_stream_url(json_data))
+                                port_info = asyncio.run(stream.get_weverse_stream_url(json_data, record_quality))
                             else:
                                 logger.error(f"[{record_url}] 错误信息: 网络异常，请检查本网络是否能正常访问Weverse平台")
 
@@ -1316,10 +1316,11 @@ def start_record(url_data: tuple, count_variable: int = -1) -> None:
 
                                 headers = get_record_headers(platform, record_url)
                                 if platform == 'Weverse':
+                                    wv_cookie = weverse_cookie if 'we2_access_token=' in weverse_cookie else f'we2_access_token={weverse_cookie}'
                                     if headers:
-                                        headers += f"\r\nCookie: {weverse_cookie}"
+                                        headers += f"\r\nCookie: {wv_cookie}"
                                     else:
-                                        headers = f"Cookie: {weverse_cookie}"
+                                        headers = f"Cookie: {wv_cookie}"
                                 elif platform == 'Berriz':
                                     if headers:
                                         if berriz_cookie:
@@ -1783,10 +1784,16 @@ def start_record(url_data: tuple, count_variable: int = -1) -> None:
 
                 # 这里是正常循环
                 while x:
+                    if record_url in url_comments or exit_recording:
+                        break
                     x = x - 1
                     if loop_time:
                         print(f'\r{anchor_name}循环等待{x}秒 ', end="")
                     time.sleep(1)
+                if record_url in url_comments:
+                    print(f"[{anchor_name}]已被注释,本条线程将会退出")
+                    clear_record_info(record_name, record_url)
+                    return
                 if loop_time:
                     print('\r检测直播间中...', end="")
         except Exception as e:
