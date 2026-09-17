@@ -1291,39 +1291,77 @@ async def get_pandatv_stream_data(url: str, proxy_addr: OptionalStr = None, cook
         'userId': user_id,
         'info': 'media fanGrade',
     }
-    room_password = get_params(url, "pwd")
-    if not room_password:
-        room_password = ''
-    data2 = {
-        'action': 'watch',
-        'userId': user_id,
-        'password': room_password,
-        'shareLinkType': '',
-    }
+    room_password = get_params(url, "pwd") or ''
+    result = {"anchor_name": user_id, "is_live": False}
 
-    result = {"anchor_name": "", "is_live": False}
-    json_str = await async_req('https://api.pandalive.co.kr/v1/member/bj',
-                       proxy_addr=proxy_addr, headers=headers, data=data, abroad=True)
-    json_data = json.loads(json_str)
+    try:
+        json_str = await async_req('https://api.pandalive.co.kr/v1/member/bj',
+                                   proxy_addr=proxy_addr, headers=headers, data=data, abroad=True)
+        if not json_str or not isinstance(json_str, str) or not json_str.strip().startswith('{'):
+            return result
+        json_data = json.loads(json_str)
+    except Exception as e:
+        logger.debug(f"PandaTV | request failed for {user_id}: {e}")
+        return result
+
     if "bjInfo" not in json_data:
-        raise RuntimeError(json_data.get("message", 'Unknown error'))
-    anchor_id = json_data['bjInfo']['id']
-    anchor_name = f"{json_data['bjInfo']['nick']}-{anchor_id}"
+        if "message" in json_data:
+            logger.warning(f"PandaTV | {user_id} | {json_data.get('message')}")
+        return result
+
+    anchor_id = json_data['bjInfo'].get('id', user_id)
+    anchor_nick = json_data['bjInfo'].get('nick', user_id)
+    bj_idx = json_data['bjInfo'].get('idx', user_id)
+    anchor_name = f"{anchor_nick}-{anchor_id}"
     result['anchor_name'] = anchor_name
-    live_status = 'media' in json_data
+
+    media = json_data.get('media')
+    live_status = bool(media) and media.get('isLive', True)
 
     if live_status:
-        json_str = await async_req(url2, proxy_addr=proxy_addr, headers=headers, data=data2, abroad=True)
-        json_data = json.loads(json_str)
-        if 'errorData' in json_data:
-            if json_data['errorData']['code'] == 'needAdult':
-                raise RuntimeError(f"{url} The live room requires login and is only accessible to adults. Please "
-                                   f"correctly fill in the login cookie in the configuration file.")
+        result['title'] = media.get('title', '') if isinstance(media, dict) else ''
+        data2 = {
+            'action': 'watch',
+            'userId': bj_idx,
+            'password': room_password,
+            'shareLinkType': '',
+        }
+        try:
+            play_str = await async_req(url2, proxy_addr=proxy_addr, headers=headers, data=data2, abroad=True)
+            if not play_str or not isinstance(play_str, str) or not play_str.strip().startswith('{'):
+                return result
+            play_json = json.loads(play_str)
+        except Exception as e:
+            logger.debug(f"PandaTV | play request failed for {anchor_name}: {e}")
+            return result
+
+        if 'errorData' in play_json:
+            err_code = play_json['errorData'].get('code', '')
+            if err_code == 'needAdult':
+                logger.warning(f"PandaTV | {anchor_name} 直播间需要成人认证，请在配置文件中填入已实名账号Cookie")
+            elif err_code == 'needPassword':
+                logger.warning(f"PandaTV | {anchor_name} 直播间设有密码，请在链接后添加?pwd=密码")
             else:
-                raise RuntimeError(json_data['errorData']['code'], json_data['message'])
-        play_url = json_data['PlayList']['hls'][0]['url']
-        play_url_list = await get_play_url_list(m3u8=play_url, proxy=proxy_addr, header=headers, abroad=True)
-        result |= {'is_live': True, 'm3u8_url': play_url, 'play_url_list': play_url_list}
+                logger.warning(f"PandaTV | {anchor_name} 播放接口返回错误: {play_json.get('message', err_code)}")
+            return result
+
+        playlist = play_json.get('PlayList', {})
+        play_url = None
+        for k in ('hls', 'hls2', 'hls3'):
+            if playlist.get(k) and len(playlist[k]) > 0 and playlist[k][0].get('url'):
+                play_url = playlist[k][0]['url']
+                break
+
+        if play_url:
+            play_url_list = await get_play_url_list(m3u8=play_url, proxy=proxy_addr, header=headers, abroad=True)
+            if not play_url_list:
+                play_url_list = [play_url]
+            result |= {
+                'is_live': True,
+                'm3u8_url': play_url,
+                'play_url_list': play_url_list,
+                'record_url': play_url
+            }
     return result
 
 

@@ -578,7 +578,7 @@ def get_quality_code(qn):
 def get_record_headers(platform, live_url):
     live_domain = '/'.join(live_url.split('/')[0:3])
     record_headers = {
-        'PandaTV': 'origin:https://www.pandalive.co.kr',
+        'PandaTV': 'origin:https://www.pandalive.co.kr\r\nreferer:https://www.pandalive.co.kr/',
         'WinkTV': 'origin:https://www.winktv.co.kr',
         'PopkonTV': 'origin:https://www.popkontv.com',
         'FlexTV': 'origin:https://www.flextv.co.kr',
@@ -806,7 +806,7 @@ def start_record(url_data: tuple, count_variable: int = -1) -> None:
                             port_info = asyncio.run(spider.get_qiandurebo_stream_data(
                                 url=record_url, proxy_addr=proxy_address, cookies=qiandurebo_cookie))
 
-                    elif record_url.find("www.pandalive.co.kr/") > -1:
+                    elif record_url.find("www.pandalive.co.kr/") > -1 or record_url.find("pandalive.co.kr/") > -1:
                         platform = 'PandaTV'
                         with semaphore:
                             if global_proxy or proxy_address:
@@ -2220,6 +2220,8 @@ while not exit_recording:
                     'www.sooplive.com',
                     'm.sooplive.com',
                     'www.pandalive.co.kr',
+                    'pandalive.co.kr',
+                    'm.pandalive.co.kr',
                     'www.winktv.co.kr',
                     'www.flextv.co.kr',
                     'www.ttinglive.com',
